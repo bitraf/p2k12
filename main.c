@@ -1,5 +1,6 @@
 #include <err.h>
 #include <ctype.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -136,12 +137,22 @@ register_member ()
 
   FILE *output;
 
+  struct termios t;
+
+  tcgetattr(0, &t);
+
+  t.c_lflag = 0xa3b;
+
+  tcsetattr(0, TCSANOW, &t);
+
+  setlocale (LC_CTYPE, "en_US.UTF-8");
+
   printf ("This is the interactive form for registering a new member\n"
           "\n"
           "Press Ctrl-C at any time to discard all input\n"
           "\n");
 
-  name = trim (readline (COLOR_ON "Your full name (e.g. Ola Hansen): " COLOR_OFF));
+  name = trim (readline (COLOR_ON "Your full name (e.g. Ærling Øgilsblå): " COLOR_OFF));
 
   if (!name || !*name)
     exit (EXIT_FAILURE);

@@ -1,6 +1,6 @@
 CFLAGS = -Wall -g
-LDFLAGS = -lreadline
-OBJECTS = main.o queue.o
+LDFLAGS = -lreadline -lpq
+OBJECTS = main.o queue.o postgresql.o
 
 all: p2k12
 

@@ -115,7 +115,7 @@ log_in (const char *user_name, int user_id)
 
   printf ("\n");
 
-  SQL_Query ("SELECT COALESCE(type, 'aktiv') FROM member_registrations WHERE user_name = %s ORDER BY id DESC", user_name);
+  SQL_Query ("SELECT COALESCE(type, 'aktiv') FROM members WHERE account = %d ORDER BY id DESC", user_id);
 
   if (SQL_RowCount () && !strcmp (SQL_Value (0, 0), "p2k12"))
     {
@@ -167,8 +167,12 @@ log_in (const char *user_name, int user_id)
 
       asprintf (&prompt, GREEN_ON "%s (%s)> " GREEN_OFF, user_name, SQL_Value (0, 0));
 
+      alarm (30);
+
       if (!(command = trim (readline (prompt))))
         break;
+
+      alarm (0);
 
       free (prompt);
 
@@ -315,23 +319,27 @@ register_member ()
       break;
     }
 
-  if (-1 == SQL_Query ("INSERT INTO member_registrations (full_name, user_name, email, type) VALUES (%s, %s, %s, %s)", name, user_name, email, type))
+  SQL_Query ("BEGIN");
+  SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'user')", user_name);
+
+  if (-1 == SQL_Query ("INSERT INTO members (full_name, email, type, account) VALUES (%s, %s, %s, CURRVAL('accounts_id_seq'::REGCLASS))", name, email, type))
     {
+      SQL_Query ("ROLLBACK");
       printf ("\n"
               "Failed to store member information\n");
     }
   else if (!strcmp (type, "p2k12"))
     {
+      SQL_Query ("COMMIT");
       printf ("\n"
               "Okay\n");
     }
   else
     {
+      SQL_Query ("COMMIT");
       printf ("\n"
               "Payment information is in the mail\n");
     }
-
-  SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'user')", user_name);
 
   printf ("\n");
   printf ("Press a key to clear the screen\n");

@@ -1,3 +1,13 @@
 *.o
-.*.sw?
-p2k12
+/.deps
+/Makefile
+/Makefile.in
+/aclocal.m4
+/autom4te.cache
+/config.log
+/config.status
+/configure
+/depcomp
+/install-sh
+/missing
+/p2k12

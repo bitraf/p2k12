@@ -262,7 +262,7 @@ cmd_ls (void)
 {
   size_t i;
 
-  SQL_Query ("SELECT *, (amount / stock)::NUMERIC(10,2) AS unit_price FROM product_stock WHERE stock > 0");
+  SQL_Query ("SELECT *, (amount / stock)::NUMERIC(10,2) AS unit_price FROM product_stock WHERE stock > 0 ORDER BY name");
 
   printf (YELLOW_ON "%-5s %-5s %7s %-20s\n" YELLOW_OFF, "ID", "Count", "Price", "Name");
 
@@ -277,7 +277,7 @@ cmd_products (void)
 {
   size_t i;
 
-  SQL_Query ("SELECT * FROM product_stock");
+  SQL_Query ("SELECT * FROM product_stock ORDER BY name");
 
   printf (YELLOW_ON "%-5s %-5s %7s %-20s\n" YELLOW_OFF, "ID", "Count", "Value", "Name");
 

@@ -592,7 +592,7 @@ register_member ()
 
   email = trim (readline (GREEN_ON "Your current e-mail address: " GREEN_OFF));
 
-  if (!email || !*email)
+  if (!email || !*email || !strchr (email, '@') || !strchr (email, '.'))
     exit (EXIT_FAILURE);
 
   printf ("Membership types\n");

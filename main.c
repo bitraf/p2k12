@@ -247,14 +247,27 @@ cmd_lastlog (int user_id)
 
   SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account)", user_id);
 
-  printf ("%-7s %8s %5s %-20s %-20s\n",
-          "Amount", "Currency", "Items", "Debit", "Credit");
+  printf ("%19s %-7s %8s %5s %-20s %-20s\n",
+          "Date", "Amount", "Currency", "Items", "Debit", "Credit");
 
   for (i = 0; i < SQL_RowCount(); ++i)
     {
-      printf ("%7s %8s %5s %-20s %-20s\n",
-              SQL_Value (i, 3), SQL_Value (i, 4), SQL_Value (i, 5), SQL_Value (i, 6), SQL_Value (i, 7));
+      printf ("%19.*s %7s %8s %5s %-20s %-20s\n",
+              19, SQL_Value (i, 8), SQL_Value (i, 3), SQL_Value (i, 4), SQL_Value (i, 5), SQL_Value (i, 6), SQL_Value (i, 7));
     }
+}
+
+static void
+cmd_passwd (int user_id, const char *realm, const char *password)
+{
+  SQL_Query ("BEGIN");
+
+  if (0 == SQL_Query ("UPDATE auth SET data = %s WHERE realm = %s AND account = %d", password, realm, user_id))
+    {
+      SQL_Query ("INSERT INTO auth (account, realm, data) VALUES (%d, %s, %s)", user_id, realm, password);
+    }
+
+  SQL_Query ("COMMIT");
 }
 
 static void
@@ -474,6 +487,13 @@ log_in (const char *user_name, int user_id)
           else
             fprintf (stderr, "Usage: %s\n", argv0);
         }
+      else if (!strcmp (argv0, "passwd"))
+        {
+          if (argc == 3)
+            cmd_passwd (user_id, ARRAY_GET (&argv, 1), ARRAY_GET (&argv, 2));
+          else
+            fprintf (stderr, "Usage: %s <REALM> <PASSWORD>\n", argv0);
+        }
       else if (!strcmp (argv0, "ls"))
         {
           if (argc == 1)
@@ -507,6 +527,8 @@ log_in (const char *user_name, int user_id)
                    "                             adds STOCK items of product with ID PRODUCT-ID\n"
                    "                               and total value SUM-VALUE to stock\n"
                    "lastlog                      list all transactions involving you\n"
+                   "passwd REALM PASSWORD        set password for given realm\n"
+                   "                               realms: door\n"
                    "products                     list all products and their IDs\n"
                    "retdeposit AMOUNT            return deposit taken from storage to p2k12\n"
                    "help                         display this help text\n"
@@ -666,7 +688,10 @@ register_member ()
 int
 main (int argc, char** argv)
 {
-  SQL_Init("dbname=p2k12 user=p2k12");
+  setenv ("TZ", "CET", 1);
+
+  SQL_Init ("dbname=p2k12 user=p2k12");
+  SQL_Query ("SET TIME ZONE 'CET'");
 
   enable_icanon ();
   enable_echo ();

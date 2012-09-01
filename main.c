@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <locale.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -185,7 +186,7 @@ enable_echo (void)
 
   tcgetattr(0, &t);
 
-  t.c_lflag |= ICANON;
+  t.c_lflag |= ECHO;
 
   tcsetattr(0, TCSANOW, &t);
 }
@@ -199,9 +200,13 @@ cmd_addproduct (const char *product_name)
 static void
 cmd_become (int user_id, const char *type)
 {
+  if (!strcmp (type, "stotte") || !strcmp (type, "stoette"))
+    type = "støtte";
+
   if (strcmp (type, "kontor")
       && strcmp (type, "aktiv")
       && strcmp (type, "støtte")
+      && strcmp (type, "none")
       && strcmp (type, "filantrop"))
     {
       fprintf (stderr, "Unknown membership type\n");
@@ -258,13 +263,92 @@ cmd_lastlog (int user_id)
 }
 
 static void
-cmd_passwd (int user_id, const char *realm, const char *password)
+gensalt (char *salt)
 {
+  FILE *f;
+  unsigned int i;
+
+  if (0 == (f = fopen("/dev/urandom", "r")))
+    err(EXIT_FAILURE, "Failed to open /dev/urandom for reading");
+
+  strcpy(salt, "$6$");
+
+  fread(salt + 3, 1, 9, f);
+
+  for (i = 0; i < 9; ++i)
+    {
+      salt[i + 3] = (salt[i + 3] & 0x7f) | 0x40;
+
+      if (!isalpha(salt[i + 3]))
+        salt[i + 3] = 'a' + rand() % ('z' - 'a');
+    }
+
+  salt[12] = '$';
+  salt[13] = 0;
+
+  fclose(f);
+}
+
+static void
+read_password (char password[256])
+{
+  disable_echo();
+
+  password[255] = 0;
+
+  if (!fgets(password, 255, stdin))
+    {
+      enable_echo();
+
+      printf("\n");
+
+      if (errno == 0)
+        errx(EXIT_FAILURE, "End of file while reading password");
+
+      err(EXIT_FAILURE, "Error reading password: %s", strerror(errno));
+    }
+
+  password[strlen(password) - 1] = 0; /* Remove \n */
+
+  enable_echo();
+
+  printf("\n");
+}
+
+static void
+cmd_passwd (int user_id, const char *realm)
+{
+  char password[256];
+  char salt[256], *password_hash;
+
+  if (strcmp (realm, "login") && strcmp (realm, "door"))
+    {
+      printf ("Unknown realm\n");
+
+      return;
+    }
+
+  printf("Password for realm \"%s\": ", realm);
+
+  read_password (password);
+
+  if (strlen (password) < 5)
+    {
+      printf ("Password too short (min 5 chars)\n");
+
+      return;
+    }
+
   SQL_Query ("BEGIN");
 
-  if (0 == SQL_Query ("UPDATE auth SET data = %s WHERE realm = %s AND account = %d", password, realm, user_id))
+  gensalt(salt);
+
+  password_hash = crypt(password, salt);
+
+  if (0 == SQL_Query ("UPDATE auth SET data = %s WHERE realm = %s AND account = %d", password_hash, realm, user_id))
     {
-      SQL_Query ("INSERT INTO auth (account, realm, data) VALUES (%d, %s, %s)", user_id, realm, password);
+
+      SQL_Query ("INSERT INTO auth (account, realm, data) VALUES (%d, %s, %s)", user_id, realm, password_hash);
     }
 
   SQL_Query ("COMMIT");
@@ -329,12 +413,16 @@ log_in (const char *user_name, int user_id)
 {
   char *command;
 
+  clear_history ();
+
   printf ("Bam, you're logged in!  (No password authentication for now)\n"
           "Press Ctrl-D to terminate session\n"
           "\n");
 
-  SQL_Query ("INSERT INTO checkins (account) VALUES (%d)", user_id);
+  if (strcmp (user_name, "deficit"))
+    SQL_Query ("INSERT INTO checkins (account) VALUES (%d)", user_id);
 
+#if 0
   SQL_Query ("SELECT COALESCE(type, 'aktiv') FROM active_members WHERE account = %d ORDER BY id DESC", user_id);
 
   if (SQL_RowCount () && !strcmp (SQL_Value (0, 0), "none"))
@@ -368,6 +456,7 @@ log_in (const char *user_name, int user_id)
 
         }
     }
+#endif
 
   cmd_ls ();
 
@@ -489,10 +578,10 @@ log_in (const char *user_name, int user_id)
         }
       else if (!strcmp (argv0, "passwd"))
         {
-          if (argc == 3)
-            cmd_passwd (user_id, ARRAY_GET (&argv, 1), ARRAY_GET (&argv, 2));
+          if (argc == 2)
+            cmd_passwd (user_id, ARRAY_GET (&argv, 1));
           else
-            fprintf (stderr, "Usage: %s <REALM> <PASSWORD>\n", argv0);
+            fprintf (stderr, "Usage: %s <REALM>\n", argv0);
         }
       else if (!strcmp (argv0, "ls"))
         {
@@ -527,8 +616,8 @@ log_in (const char *user_name, int user_id)
                    "                             adds STOCK items of product with ID PRODUCT-ID\n"
                    "                               and total value SUM-VALUE to stock\n"
                    "lastlog                      list all transactions involving you\n"
-                   "passwd REALM PASSWORD        set password for given realm\n"
-                   "                               realms: door\n"
+                   "passwd REALM                 set password for given realm\n"
+                   "                               realms: door, login\n"
                    "products                     list all products and their IDs\n"
                    "retdeposit AMOUNT            return deposit taken from storage to p2k12\n"
                    "help                         display this help text\n"
@@ -656,6 +745,7 @@ register_member ()
   SQL_Query ("BEGIN");
   SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'user')", user_name);
 
+  SQL_Query ("INSERT INTO checkins (account) VALUES (CURRVAL('accounts_id_seq'::REGCLASS))");
   if (-1 == SQL_Query ("INSERT INTO members (full_name, email, type, account) VALUES (%s, %s, %s, CURRVAL('accounts_id_seq'::REGCLASS))", name, email, type))
     {
       SQL_Query ("ROLLBACK");
@@ -688,6 +778,8 @@ register_member ()
 int
 main (int argc, char** argv)
 {
+  uid_t uid;
+
   setenv ("TZ", "CET", 1);
 
   SQL_Init ("dbname=p2k12 user=p2k12");
@@ -699,6 +791,28 @@ main (int argc, char** argv)
   printf ("\033[00m\033[H\033[2J");
   printf ("Welcome to P2K12!\n");
   printf ("\n");
+
+  using_history ();
+
+  uid = getuid();
+
+  if (uid != 0)
+    {
+      struct passwd *pw;
+
+      if (NULL != (pw = getpwuid(uid)))
+        {
+          if (-1 == SQL_Query("SELECT id FROM accounts WHERE name = %s", pw->pw_name))
+            errx (EXIT_FAILURE, "SQL query failed");
+
+          if (SQL_RowCount ())
+            {
+              log_in (pw->pw_name, atoi (SQL_Value (0, 0)));
+
+              return EXIT_SUCCESS;
+            }
+        }
+    }
 
   register_member ();
 

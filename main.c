@@ -191,6 +191,16 @@ enable_echo (void)
   tcsetattr(0, TCSANOW, &t);
 }
 
+static long long
+sql_last_id (void)
+{
+  if (-1 == SQL_Query ("SELECT LASTVAL()"))
+    return -1;
+
+  return strtoll (SQL_Value (0, 0), 0, 0);
+}
+
+
 static void
 cmd_addproduct (const char *product_name)
 {
@@ -240,7 +250,7 @@ cmd_addstock (int user_id, const char *product_id, const char *sum_value, const 
       else
         {
           SQL_Query ("ROLLBACK");
-          fprintf (stderr, "SQL Error: Did not commit anything\n");
+          fprintf (stderr, "SQL Error; Did not commit anything\n");
         }
     }
 }
@@ -252,13 +262,13 @@ cmd_lastlog (int user_id)
 
   SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account)", user_id);
 
-  printf ("%19s %-7s %8s %5s %-20s %-20s\n",
-          "Date", "Amount", "Currency", "Items", "Debit", "Credit");
+  printf ("%19s %-7s %-7s %8s %5s %-20s %-20s\n",
+          "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
 
   for (i = 0; i < SQL_RowCount(); ++i)
     {
-      printf ("%19.*s %7s %8s %5s %-20s %-20s\n",
-              19, SQL_Value (i, 8), SQL_Value (i, 3), SQL_Value (i, 4), SQL_Value (i, 5), SQL_Value (i, 6), SQL_Value (i, 7));
+      printf ("%19.*s %7s %7s %8s %5s %-20s %-20s\n",
+              19, SQL_Value (i, 8), SQL_Value (i, 0), SQL_Value (i, 3), SQL_Value (i, 4), SQL_Value (i, 5), SQL_Value (i, 6), SQL_Value (i, 7));
     }
 }
 
@@ -403,8 +413,29 @@ cmd_retdeposit (int user_id, const char *amount)
       else
         {
           SQL_Query ("ROLLBACK");
-          fprintf (stderr, "SQL Error: Did not commit anything\n");
+          fprintf (stderr, "SQL Error; Did not commit anything\n");
         }
+    }
+}
+
+static void
+cmd_undo (const char *transaction)
+{
+  long long int undo_transaction;
+
+  if (-1 != SQL_Query ("BEGIN")
+      && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('undo ' || %s)", transaction)
+      && -1 != (undo_transaction = sql_last_id ())
+      && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) SELECT %l, credit_account, debit_account, amount, currency, stock FROM transaction_lines WHERE transaction = %s::INTEGER",
+                          undo_transaction, transaction)
+      && -1 != SQL_Query ("COMMIT"))
+    {
+      fprintf (stderr, "Commited to transaction log.\n");
+    }
+  else
+    {
+      SQL_Query ("ROLLBACK");
+      fprintf (stderr, "SQL Error; Did not commit anything\n");
     }
 }
 
@@ -451,7 +482,7 @@ log_in (const char *user_name, int user_id)
           else
             {
               SQL_Query ("ROLLBACK");
-              printf ("SQL Error: Did not commit anything\n");
+              printf ("SQL Error; Did not commit anything\n");
             }
 
         }
@@ -604,6 +635,13 @@ log_in (const char *user_name, int user_id)
           else
             fprintf (stderr, "Usage: %s <AMOUNT>\n", argv0);
         }
+      else if (!strcmp (argv0, "undo"))
+        {
+          if (argc == 2)
+            cmd_undo (ARRAY_GET (&argv, 1));
+          else
+            fprintf (stderr, "Usage: %s <TRANSACTION>\n", argv0);
+        }
       else if (!strcmp (argv0, "help"))
         {
           fprintf (stderr,
@@ -620,33 +658,46 @@ log_in (const char *user_name, int user_id)
                    "                               realms: door, login\n"
                    "products                     list all products and their IDs\n"
                    "retdeposit AMOUNT            return deposit taken from storage to p2k12\n"
+                   "undo TRANSACTION             undo a transaction\n"
                    "help                         display this help text\n"
-                   "[0-9]+                       buy a product\n");
+                   "[0-9]+ COUNT                 buy a product\n");
         }
       else if (strtol (argv0, &endptr, 0) && !*endptr)
         {
-          if (-1 == SQL_Query ("SELECT name FROM accounts WHERE (id = %s::INTEGER OR name = %s) AND type = 'product'", argv0, argv0)
+          int count = 1;
+
+          if (argc > 2)
+            fprintf (stderr, "Usage: <PRODUCT-ID> [COUNT]\n");
+          else if (-1 == SQL_Query ("SELECT name FROM accounts WHERE (id = %s::INTEGER OR name = %s) AND type = 'product'", argv0, argv0)
               || !SQL_RowCount ())
             {
               fprintf (stderr, "Bad product ID\n");
             }
+          else if (argc == 2
+                   && (0 >= (count = strtol (ARRAY_GET (&argv, 1), &endptr, 0))
+                       || *endptr))
+            {
+              fprintf (stderr, "Invalid count '%s'\n", ARRAY_GET (&argv, 1));
+            }
           else
             {
               char *product_name;
+              long long transaction;
 
               product_name = strdup (SQL_Value (0, 0));
 
               if (-1 != SQL_Query ("BEGIN")
                   && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('buy')")
-                  && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) VALUES (LASTVAL(), %d, %s::INTEGER, (SELECT amount / stock FROM product_stock WHERE id = %s::INTEGER), 'NOK', 1)", user_id, command, command)
+                  && -1 != (transaction = sql_last_id ())
+                  && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) VALUES (%l, %d, %s::INTEGER, (SELECT amount / stock FROM product_stock WHERE id = %s::INTEGER), 'NOK', %d)", transaction, user_id, command, command, count)
                   && -1 != SQL_Query ("COMMIT"))
                 {
-                  fprintf (stderr, "Commited to transaction log: %s buys 1 %s\n", user_name, product_name);
+                  fprintf (stderr, "Commited to transaction log: %s buys %d %s.  To undo, type undo %lld\n", user_name, count, product_name, transaction);
                 }
               else
                 {
                   SQL_Query ("ROLLBACK");
-                  fprintf (stderr, "SQL Error: Did not commit anything\n");
+                  fprintf (stderr, "SQL Error; Did not commit anything\n");
                 }
 
               free (product_name);

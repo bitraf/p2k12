@@ -330,6 +330,7 @@ cmd_passwd (int user_id, const char *realm)
 {
   char password[256];
   char salt[256], *password_hash;
+  size_t i, chars, minchars = 5;
 
   if (strcmp (realm, "login") && strcmp (realm, "door"))
     {
@@ -342,18 +343,40 @@ cmd_passwd (int user_id, const char *realm)
 
   read_password (password);
 
-  if (strlen (password) < 5)
+  chars = strlen (password); /* test123 */
+
+  for (i = 1; password[i]; ++i)
     {
-      printf ("Password too short (min 5 chars)\n");
+      if (password[i] == password[i - 1] + 1)
+        --chars;
+    }
+
+  if (strstr (password, "hest"))
+    chars -= 2; /* st already counted as -1 */
+
+  if (strstr (password, "test"))
+    chars -= 2; /* st already counted as -1 */
+
+  if (!strcmp (realm, "login"))
+    minchars = 9;
+
+  if (chars < minchars)
+    {
+      printf ("Password too short (%zu of minimum %zu chars)\n"
+              "These patterns are counted as a single char:\n"
+              "  * Consecutive ASCII codes (e.g. 123, ABC, xyz)\n"
+              "  * \"hest\"\n"
+              "  * \"test\"\n",
+              chars, minchars);
 
       return;
     }
 
   SQL_Query ("BEGIN");
 
-  gensalt(salt);
+  gensalt (salt);
 
-  password_hash = crypt(password, salt);
+  password_hash = crypt (password, salt);
 
   if (0 == SQL_Query ("UPDATE auth SET data = %s WHERE realm = %s AND account = %d", password_hash, realm, user_id))
     {

@@ -529,6 +529,8 @@ log_in (const char *user_name, int user_id)
       if (!(command = trim (readline (prompt))))
         break;
 
+      add_history(command);
+
       alarm (0);
 
       free (prompt);

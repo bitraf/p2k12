@@ -470,7 +470,7 @@ log_in (const char *user_name, int user_id)
   clear_history ();
 
   printf ("Bam, you're logged in!  (No password authentication for now)\n"
-          "Press Ctrl-D to terminate session\n"
+          "Press Ctrl-D to terminate session.  Type \"help\" for help\n"
           "\n");
 
   if (strcmp (user_name, "deficit"))

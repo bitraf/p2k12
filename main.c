@@ -428,7 +428,7 @@ cmd_retdeposit (int user_id, const char *amount)
     {
       if (-1 != SQL_Query ("BEGIN")
           && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('return deposit')")
-          && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) VALUES (LASTVAL(), %d, (SELECT id FROM accounts WHERE type = 'deposit' LIMIT 1), %s::NUMERIC, 'NOK', 1)", user_id, amount)
+          && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) VALUES (LASTVAL(), %d, (SELECT id FROM accounts WHERE name = 'deposit' LIMIT 1), %s::NUMERIC, 'NOK', 1)", user_id, amount)
           && -1 != SQL_Query ("COMMIT"))
         {
           fprintf (stderr, "Commited to transaction log\n");

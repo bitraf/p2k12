@@ -24,6 +24,20 @@ if (false === ($member_res = pg_query("SELECT am.account, mt.price AS monthly_du
   exit;
 }
 
+if (false === ($join_date_res = pg_query_params('SELECT EXTRACT(EPOCH FROM MIN(date)) FROM members WHERE account = $1', array($member['account']))))
+{
+  echo "Shite!\n";
+
+  exit;
+}
+
+$join_date = pg_fetch_result($join_date_res, 0, 0);
+
+$pay_day = (int) trim(strftime('%e', $join_date));
+
+if ($pay_day > 28)
+  $pay_day = 28;
+
 $now = time();
 
 $smtp = Mail::factory('smtp', array ('host' => $smtp_host, 'auth' => true, 'username' => $smtp_user, 'password' => $smtp_password));
@@ -41,6 +55,10 @@ Medlemskap, $period
 Betalingsinformasjon:
 
   {$member['full_name']}
+
+Betalingsdag:
+
+  Den {$pay_day}. dagen i hver måned
 
 Mottaker:
  

@@ -17,7 +17,6 @@
 
 #include "array.h"
 #include "postgresql.h"
-#include "queue.h"
 
 #define GREEN_ON "\033[32;1m"
 #define GREEN_OFF "\033[00m"

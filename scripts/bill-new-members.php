@@ -17,7 +17,7 @@ if (false === pg_connect("dbname=p2k12 user=p2k12"))
   exit;
 }
 
-if (false === ($member_res = pg_query("SELECT am.account, mt.price AS monthly_dues, am.full_name, am.email FROM active_members am INNER JOIN membership_infos mt ON mt.name = am.type WHERE am.account IN (SELECT account FROM members WHERE date > (SELECT MAX(time) FROM billing_runs) AND account NOT IN (SELECT account FROM members WHERE date <= (SELECT MAX(time) FROM billing_runs))) AND mt.recurrence = '1 month'::INTERVAL ORDER BY am.full_name")))
+if (false === ($member_res = pg_query("SELECT am.account, mt.price AS monthly_dues, am.full_name, am.email FROM active_members am INNER JOIN membership_infos mt ON mt.name = am.type WHERE am.account IN (SELECT account FROM members WHERE date > (SELECT MAX(time) FROM billing_runs) AND account NOT IN (SELECT account FROM members WHERE date <= (SELECT MAX(time) FROM billing_runs))) AND mt.recurrence = '1 month'::INTERVAL AND mt.price > 0 ORDER BY am.full_name")))
 {
   echo "Bollocks!\n";
 
@@ -57,8 +57,10 @@ Kontonummer:
   1503 273 5581
 
 Hvis dette scriptet har rett, er dette din første medlemsfaktura, så velkommen 
-til Bitraf!  Takk for at du betaler medlemsavgift!  Bitraf er avhengig av 
-medlemsavgift for å betale husleie og å kjøpe nødvendig utstyr.
+til Bitraf!
+
+Takk for at du betaler medlemsavgift!  Bitraf er avhengig av medlemsavgift for 
+å betale husleie og å kjøpe nødvendig utstyr.
 
 For å se detaljer om ditt medlemskap, gå til
 
@@ -80,9 +82,7 @@ MSG
   $headers = $message->headers($headers);
 
   echo "** {$member['full_name']}\n";
-  /*
   $mail_result = $smtp->send($member['email'], $headers, $body);
-   */
 }
 
 pg_query('INSERT INTO billing_runs DEFAULT VALUES;');

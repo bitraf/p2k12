@@ -207,21 +207,21 @@ cmd_addproduct (const char *product_name)
 }
 
 static void
-cmd_become (int user_id, const char *type)
+cmd_become (int user_id, const char *price)
 {
-  if (!strcmp (type, "stotte") || !strcmp (type, "stoette"))
-    type = "støtte";
+  if (!strcmp (price, "300"))
+    price = "300";
 
-  if (strcmp (type, "kontor")
-      && strcmp (type, "aktiv")
-      && strcmp (type, "støtte")
-      && strcmp (type, "none")
-      && strcmp (type, "filantrop"))
+  if (strcmp (price, "500")
+      && strcmp (price, "1500")
+      && strcmp (price, "1000")
+      && strcmp (price, "300")
+      && strcmp (price, "0"))
     {
       fprintf (stderr, "Unknown membership type\n");
     }
   else
-    SQL_Query ("INSERT INTO members (full_name, email, type, account) SELECT full_name, email, %s, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", type, user_id);
+    SQL_Query ("INSERT INTO members (full_name, email, price, account) SELECT full_name, email, %s, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", price, user_id);
 }
 
 static void
@@ -608,7 +608,7 @@ log_in (const char *user_name, int user_id)
           if (argc == 2)
             cmd_become (user_id, ARRAY_GET (&argv, 1));
           else
-            fprintf (stderr, "Usage: %s <TYPE>\n", argv0);
+            fprintf (stderr, "Usage: %s <PRICE>\n", argv0);
         }
       else if (!strcmp (argv0, "addproduct"))
         {
@@ -669,8 +669,8 @@ log_in (const char *user_name, int user_id)
       else if (!strcmp (argv0, "help"))
         {
           fprintf (stderr,
-                   "become TYPE                  switch membership type to TYPE\n"
-                   "                                types: støtte, aktiv, filantrop\n"
+                   "become PRICE                 switch membership price to PRICE\n"
+                   "                                prices: 0, 300, 500, 1000, 1500\n"
                    "give USER AMOUNT             give AMOUNT to USER from own account\n"
                    "take USER AMOUNT             take AMOUNT from USER to own account\n"
                    "addproduct NAME              adds PRODUCT to the inventory\n"

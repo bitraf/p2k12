@@ -207,31 +207,23 @@ cmd_addproduct (const char *product_name)
 }
 
 static void
-cmd_become (int user_id, const char *type)
+cmd_become (int user_id, const char *price)
 {
-  int amount;
+  if (!strcmp (price, "300"))
+    price = "300";
 
-  if (!strcmp (type, "stotte")
-      || !strcmp (type, "stoette")
-      || !strcmp (type, "støtte"))
-    amount = 300;
-  else if (!strcmp (type, "aktiv"))
-    amount = 500;
-  else if (!strcmp (type, "none"))
-    amount = 0;
-  else if (!strcmp (type, "filantrop"))
-    amount = 1000;
-  else if (!strcmp (type, "24/7")
-           || !strcmp (type, "247"))
-    amount = 1500;
-  else
+  if (strcmp (price, "500")
+      && strcmp (price, "1500")
+      && strcmp (price, "1000")
+      && strcmp (price, "300")
+      && strcmp (price, "0"))
     {
       fprintf (stderr, "Unknown membership type\n");
 
       return;
     }
 
-  SQL_Query ("INSERT INTO members (full_name, email, price, account) SELECT full_name, email, %d, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", amount, user_id);
+  SQL_Query ("INSERT INTO members (full_name, email, price, account) SELECT full_name, email, %s, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", price, user_id);
 }
 
 static void
@@ -618,7 +610,7 @@ log_in (const char *user_name, int user_id)
           if (argc == 2)
             cmd_become (user_id, ARRAY_GET (&argv, 1));
           else
-            fprintf (stderr, "Usage: %s <TYPE>\n", argv0);
+            fprintf (stderr, "Usage: %s <PRICE>\n", argv0);
         }
       else if (!strcmp (argv0, "addproduct"))
         {
@@ -679,8 +671,8 @@ log_in (const char *user_name, int user_id)
       else if (!strcmp (argv0, "help"))
         {
           fprintf (stderr,
-                   "become TYPE                  switch membership type to TYPE\n"
-                   "                                types: støtte, aktiv, filantrop, 24/7\n"
+                   "become PRICE                 switch membership price to PRICE\n"
+                   "                                prices: 0, 300, 500, 1000, 1500\n"
                    "give USER AMOUNT             give AMOUNT to USER from own account\n"
                    "take USER AMOUNT             take AMOUNT from USER to own account\n"
                    "addproduct NAME              adds PRODUCT to the inventory\n"
@@ -751,7 +743,7 @@ register_member ()
   char *name;
   char *user_name;
   char *email;
-  char *type;
+  char *price;
 
   struct termios t;
 
@@ -786,39 +778,40 @@ register_member ()
   if (!name || !*name)
     exit (EXIT_FAILURE);
 
+
   email = trim (readline (GREEN_ON "Your current e-mail address: " GREEN_OFF));
 
   if (!email || !*email || !strchr (email, '@') || !strchr (email, '.'))
     exit (EXIT_FAILURE);
 
-  printf ("Membership types\n");
-  printf ("     støtte     300 kr/month (occasional/poor member)\n");
-  printf ("  OR aktiv      500 kr/month (regular member)\n");
-  printf ("  OR filantrop 1000 kr/month (well off member)\n");
-  printf ("  OR none         0\n");
-
+  printf ("Membership price\n");
+  printf ("     aktiv      500 kr per month\n");
+  printf ("  OR 24/7      1500 kr per month\n");
+  printf ("  OR filantrop 1000 kr per month\n");
+  printf ("  OR støtte     300 kr per month\n");
+  printf ("  OR none         0 kr per month\n");
   for (;;)
     {
-      type = trim (readline (GREEN_ON "Membership type (default is aktiv): " GREEN_OFF));
+      price = trim (readline (GREEN_ON "Membership price (default is 500): " GREEN_OFF));
 
-      if (!type)
+      if (!price)
         exit (EXIT_FAILURE);
 
-      if (!*type)
+      if (!*price)
         {
-          free (type);
-          type = strdup ("aktiv");
+          free (price);
+          price = strdup ("aktiv");
         }
       else
         {
-          if (strcmp (type, "aktiv")
-              && strcmp (type, "støtte")
-              && strcmp (type, "stotte")
-              && strcmp (type, "stoette")
-              && strcmp (type, "none")
-              && strcmp (type, "filantrop"))
+          if (strcmp (price, "500")
+              && strcmp (price, "1500")
+              && strcmp (price, "1000")
+              && strcmp (price, "300")
+              && strcmp (price, "0")
+              )
             {
-              printf ("Specify either \"aktiv\", \"støtte\", \"filantrop\" or \"none\"\n");
+              printf ("Specify either \"500\", \"1500\", \"1000\", \"300\", or \"0\"\n");
 
               continue;
             }
@@ -831,13 +824,13 @@ register_member ()
   SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'user')", user_name);
 
   SQL_Query ("INSERT INTO checkins (account) VALUES (CURRVAL('accounts_id_seq'::REGCLASS))");
-  if (-1 == SQL_Query ("INSERT INTO members (full_name, email, type, account) VALUES (%s, %s, %s, CURRVAL('accounts_id_seq'::REGCLASS))", name, email, type))
+  if (-1 == SQL_Query ("INSERT INTO members (full_name, email, price, account) VALUES (%s, %s, %s, CURRVAL('accounts_id_seq'::REGCLASS))", name, email, price))
     {
       SQL_Query ("ROLLBACK");
       printf ("\n"
               "Failed to store member information\n");
     }
-  else if (!strcmp (type, "none"))
+  else if (!strcmp (price, "none"))
     {
       SQL_Query ("COMMIT");
       printf ("\n"

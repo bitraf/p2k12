@@ -209,19 +209,29 @@ cmd_addproduct (const char *product_name)
 static void
 cmd_become (int user_id, const char *type)
 {
-  if (!strcmp (type, "stotte") || !strcmp (type, "stoette"))
-    type = "støtte";
+  int amount;
 
-  if (strcmp (type, "kontor")
-      && strcmp (type, "aktiv")
-      && strcmp (type, "støtte")
-      && strcmp (type, "none")
-      && strcmp (type, "filantrop"))
+  if (!strcmp (type, "stotte")
+      || !strcmp (type, "stoette")
+      || !strcmp (type, "støtte"))
+    amount = 300;
+  else if (!strcmp (type, "aktiv"))
+    amount = 500;
+  else if (!strcmp (type, "none"))
+    amount = 0;
+  else if (!strcmp (type, "filantrop"))
+    amount = 1000;
+  else if (!strcmp (type, "24/7")
+           || !strcmp (type, "247"))
+    amount = 1500;
+  else
     {
       fprintf (stderr, "Unknown membership type\n");
+
+      return;
     }
-  else
-    SQL_Query ("INSERT INTO members (full_name, email, type, account) SELECT full_name, email, %s, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", type, user_id);
+
+  SQL_Query ("INSERT INTO members (full_name, email, price, account) SELECT full_name, email, %d, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", amount, user_id);
 }
 
 static void
@@ -670,7 +680,7 @@ log_in (const char *user_name, int user_id)
         {
           fprintf (stderr,
                    "become TYPE                  switch membership type to TYPE\n"
-                   "                                types: støtte, aktiv, filantrop\n"
+                   "                                types: støtte, aktiv, filantrop, 24/7\n"
                    "give USER AMOUNT             give AMOUNT to USER from own account\n"
                    "take USER AMOUNT             take AMOUNT from USER to own account\n"
                    "addproduct NAME              adds PRODUCT to the inventory\n"

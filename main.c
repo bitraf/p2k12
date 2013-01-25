@@ -464,7 +464,7 @@ cmd_undo (const char *transaction)
 }
 
 static void
-log_in (const char *user_name, int user_id)
+log_in (const char *user_name, int user_id, int register_checkin)
 {
   char *command;
 
@@ -474,7 +474,7 @@ log_in (const char *user_name, int user_id)
           "Press Ctrl-D to terminate session.  Type \"help\" for help\n"
           "\n");
 
-  if (strcmp (user_name, "deficit"))
+  if (strcmp (user_name, "deficit") && register_checkin)
     SQL_Query ("INSERT INTO checkins (account) VALUES (%d)", user_id);
 
 #if 0
@@ -768,7 +768,7 @@ register_member ()
 
   if (SQL_RowCount ())
     {
-      log_in (user_name, atoi (SQL_Value (0, 0)));
+      log_in (user_name, atoi (SQL_Value (0, 0)), 1);
 
       return;
     }
@@ -885,7 +885,7 @@ main (int argc, char** argv)
 
           if (SQL_RowCount ())
             {
-              log_in (pw->pw_name, atoi (SQL_Value (0, 0)));
+              log_in (pw->pw_name, atoi (SQL_Value (0, 0)), 0);
 
               return EXIT_SUCCESS;
             }

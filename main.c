@@ -786,7 +786,6 @@ register_member ()
 
   printf ("Membership price\n");
   printf ("     aktiv      500 kr per month\n");
-  printf ("  OR 24/7      1500 kr per month\n");
   printf ("  OR filantrop 1000 kr per month\n");
   printf ("  OR støtte     300 kr per month\n");
   printf ("  OR none         0 kr per month\n");
@@ -805,13 +804,12 @@ register_member ()
       else
         {
           if (strcmp (price, "500")
-              && strcmp (price, "1500")
               && strcmp (price, "1000")
               && strcmp (price, "300")
               && strcmp (price, "0")
               )
             {
-              printf ("Specify either \"500\", \"1500\", \"1000\", \"300\", or \"0\"\n");
+              printf ("Specify either \"500\", \"1000\", \"300\", or \"0\"\n");
 
               continue;
             }

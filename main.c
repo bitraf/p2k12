@@ -477,42 +477,6 @@ log_in (const char *user_name, int user_id, int register_checkin)
   if (strcmp (user_name, "deficit") && register_checkin)
     SQL_Query ("INSERT INTO checkins (account) VALUES (%d)", user_id);
 
-#if 0
-  SQL_Query ("SELECT COALESCE(type, 'aktiv') FROM active_members WHERE account = %d ORDER BY id DESC", user_id);
-
-  if (SQL_RowCount () && !strcmp (SQL_Value (0, 0), "none"))
-    {
-      SQL_Query ("SELECT * FROM transactions t INNER JOIN transaction_lines tl ON tl.transaction = t.id WHERE tl.credit_account IN (SELECT id FROM accounts WHERE type = 'p2k12') AND tl.debit_account = %d AND date > NOW() - INTERVAL '24 hour'", user_id);
-
-      if (!SQL_RowCount ())
-        {
-          char *response;
-
-          printf ("You need to pay 35 NOK to use p2k12 for the next 24 hours\n"
-                  "\n");
-
-          response = trim (readline (GREEN_ON "Type \"pay\" (without quotes) to pay> " GREEN_OFF));
-
-          if (!response || strcmp (response, "pay"))
-            return;
-
-          if (-1 != SQL_Query ("BEGIN")
-              && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('p2k12 day user')")
-              && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) VALUES (LASTVAL(), %d, (SELECT id FROM accounts WHERE name = 'p2k12 day users' LIMIT 1), 35, 'NOK', 1)", user_id)
-              && -1 != SQL_Query ("COMMIT"))
-            {
-              printf ("Commited to transaction log: %s buys 24 hour p2k12 membership\n", user_name);
-            }
-          else
-            {
-              SQL_Query ("ROLLBACK");
-              printf ("SQL Error; Did not commit anything\n");
-            }
-
-        }
-    }
-#endif
-
   cmd_ls ();
 
   for (;;)

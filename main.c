@@ -464,12 +464,20 @@ cmd_undo (const char *transaction)
 }
 
 static void
-cmd_checkout (const char *user_name, int user_id)
+cmd_checkin (const char *user_name, int user_id, int checkin_type)
 {
-  if (strcmp (user_name, "deficit"))
-    SQL_Query ("INSERT INTO checkins (account, type) VALUES (%d, 'checkout')", user_id);
+  if (checkin_type == 0)
+    {
+      if (strcmp (user_name, "deficit"))
+        SQL_Query ("INSERT INTO checkins (account, type) VALUES (%d, 'checkout')", user_id);
+    }
+  else if (checkin_type == 1)
+    {
+      if (strcmp (user_name, "deficit"))
+        SQL_Query ("INSERT INTO checkins (account, type) VALUES (%d, 'checkin')", user_id);
+    }
 
-  printf("You're now checked out.\n");
+  printf("You're now checked %s.\n", checkin_type == 0 ? "out" : "in");
 }
 
 static void
@@ -483,8 +491,8 @@ log_in (const char *user_name, int user_id, int register_checkin)
           "Press Ctrl-D to terminate session.  Type \"help\" for help\n"
           "\n");
 
-  if (strcmp (user_name, "deficit") && register_checkin)
-    SQL_Query ("INSERT INTO checkins (account) VALUES (%d)", user_id);
+  if (register_checkin)
+    cmd_checkin(user_name, user_id, 1);
 
 #if 0
   SQL_Query ("SELECT COALESCE(type, 'aktiv') FROM active_members WHERE account = %d ORDER BY id DESC", user_id);
@@ -682,6 +690,8 @@ log_in (const char *user_name, int user_id, int register_checkin)
           fprintf (stderr,
                    "become PRICE                 switch membership price to PRICE\n"
                    "                                prices: 0, 300, 500, 1000, 1500\n"
+                   "checkin                      register arrival to space\n"
+                   "checkout                     register departure from space\n"
                    "give USER AMOUNT             give AMOUNT to USER from own account\n"
                    "take USER AMOUNT             take AMOUNT from USER to own account\n"
                    "addproduct NAME              adds PRODUCT to the inventory\n"
@@ -694,7 +704,6 @@ log_in (const char *user_name, int user_id, int register_checkin)
                    "products                     list all products and their IDs\n"
                    "retdeposit AMOUNT            return deposit taken from storage to p2k12\n"
                    "undo TRANSACTION             undo a transaction\n"
-                   "checkout                     register departure from space\n"
                    "help                         display this help text\n"
                    "[0-9]+ COUNT                 buy a product\n");
         }
@@ -739,14 +748,20 @@ log_in (const char *user_name, int user_id, int register_checkin)
               free (product_name);
             }
         }
-      else if (!strcmp (argv0, "checkout"))
+      else if (!strcmp (argv0, "checkin"))
         {
           if (argc == 1)
-            cmd_checkout (user_name, user_id);
+            cmd_checkin (user_name, user_id, 1);
           else
             fprintf (stderr, "Usage: %s\n", argv0);
         }
-
+      else if (!strcmp (argv0, "checkout"))
+        {
+          if (argc == 1)
+            cmd_checkin (user_name, user_id, 0);
+          else
+            fprintf (stderr, "Usage: %s\n", argv0);
+        }
       else
         fprintf (stderr, "Unknown command '%s'.  Try 'help'\n", argv0);
 

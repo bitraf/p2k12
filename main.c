@@ -469,7 +469,7 @@ cmd_checkout (const char *user_name, int user_id)
   if (strcmp (user_name, "deficit"))
     SQL_Query ("INSERT INTO checkins (account, type) VALUES (%d, 'checkout')", user_id);
 
-  printf("You're now checked out");
+  printf("You're now checked out.\n");
 }
 
 static void

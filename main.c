@@ -464,6 +464,15 @@ cmd_undo (const char *transaction)
 }
 
 static void
+cmd_checkout (const char *user_name, int user_id)
+{
+  if (strcmp (user_name, "deficit"))
+    SQL_Query ("INSERT INTO checkins (account, type) VALUES (%d, 'checkout')", user_id);
+
+  printf("You're now checked out");
+}
+
+static void
 log_in (const char *user_name, int user_id, int register_checkin)
 {
   char *command;
@@ -567,9 +576,9 @@ log_in (const char *user_name, int user_id, int register_checkin)
               fprintf (stderr, "You cannot give away negative amounts\n");
             }
           else if (-1 != SQL_Query ("BEGIN")
-                && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('give')")
-                && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency) VALUES (LASTVAL(), %d, (SELECT id FROM accounts WHERE name = %s), %s::NUMERIC, 'NOK')", user_id, target, amount)
-                && -1 != SQL_Query ("COMMIT"))
+                   && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('give')")
+                   && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency) VALUES (LASTVAL(), %d, (SELECT id FROM accounts WHERE name = %s), %s::NUMERIC, 'NOK')", user_id, target, amount)
+                   && -1 != SQL_Query ("COMMIT"))
             {
               fprintf (stderr, "Commited to transaction log: %s gives %s %s NOK\n", user_name, target, amount);
             }
@@ -592,9 +601,9 @@ log_in (const char *user_name, int user_id, int register_checkin)
               fprintf (stderr, "You cannot take negative amounts\n");
             }
           else if (-1 != SQL_Query ("BEGIN")
-                && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('take')")
-                && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency) VALUES (LASTVAL(), (SELECT id FROM accounts WHERE name = %s), %d, %s::NUMERIC, 'NOK')", target, user_id, amount)
-                && -1 != SQL_Query ("COMMIT"))
+                   && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('take')")
+                   && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency) VALUES (LASTVAL(), (SELECT id FROM accounts WHERE name = %s), %d, %s::NUMERIC, 'NOK')", target, user_id, amount)
+                   && -1 != SQL_Query ("COMMIT"))
             {
               fprintf (stderr, "Commited to transaction log: %s takes %s NOK from %s\n", user_name, amount, target);
             }
@@ -685,6 +694,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
                    "products                     list all products and their IDs\n"
                    "retdeposit AMOUNT            return deposit taken from storage to p2k12\n"
                    "undo TRANSACTION             undo a transaction\n"
+                   "checkout                     register departure from space\n"
                    "help                         display this help text\n"
                    "[0-9]+ COUNT                 buy a product\n");
         }
@@ -695,7 +705,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
           if (argc > 2)
             fprintf (stderr, "Usage: <PRODUCT-ID> [COUNT]\n");
           else if (-1 == SQL_Query ("SELECT name FROM accounts WHERE (id = %s::INTEGER OR name = %s) AND type = 'product'", argv0, argv0)
-              || !SQL_RowCount ())
+                   || !SQL_RowCount ())
             {
               fprintf (stderr, "Bad product ID\n");
             }
@@ -729,6 +739,14 @@ log_in (const char *user_name, int user_id, int register_checkin)
               free (product_name);
             }
         }
+      else if (!strcmp (argv0, "checkout"))
+        {
+          if (argc == 1)
+            cmd_checkout (user_name, user_id);
+          else
+            fprintf (stderr, "Usage: %s\n", argv0);
+        }
+
       else
         fprintf (stderr, "Unknown command '%s'.  Try 'help'\n", argv0);
 
@@ -807,7 +825,7 @@ register_member ()
               && strcmp (price, "1000")
               && strcmp (price, "300")
               && strcmp (price, "0")
-              )
+          )
             {
               printf ("Specify either \"500\", \"1000\", \"300\", or \"0\"\n");
 

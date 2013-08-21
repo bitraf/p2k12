@@ -532,6 +532,11 @@ log_in (const char *user_name, int user_id, int register_checkin)
 
   cmd_ls ();
 
+  SQL_Query ("SELECT price FROM active_members WHERE account = %d", user_id);
+
+  int membership_price;
+  membership_price = strtol(SQL_Value(0, 0), 0, 0);
+
   for (;;)
     {
       char *prompt, *argv0, *endptr;
@@ -571,6 +576,15 @@ log_in (const char *user_name, int user_id, int register_checkin)
         }
 
       argv0 = ARRAY_GET (&argv, 0);
+
+      if (strcmp (argv0, "become") && membership_price < 100 && strcmp(argv0, "help"))
+        {
+          fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists commands.\n");
+
+          ARRAY_FREE (&argv);
+          free (command);
+          continue;
+        }
 
       if (!strcmp (argv0, "give") && argc == 3)
         {

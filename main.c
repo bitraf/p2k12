@@ -224,6 +224,7 @@ cmd_become (int user_id, const char *price)
     }
 
   SQL_Query ("INSERT INTO members (full_name, email, price, account) SELECT full_name, email, %s, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", price, user_id);
+  printf("Your membership has been changed to type: %s\n", price);
 }
 
 static void

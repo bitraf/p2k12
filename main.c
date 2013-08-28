@@ -583,7 +583,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
 
       argv0 = ARRAY_GET (&argv, 0);
 
-      if (strcmp (argv0, "become") && membership_price < 100 && strcmp(argv0, "help") && strcmp(flag, "m_office"))
+      if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp(argv0, "help") != 0 && strcmp(flag, "m_office") != 0)
         {
           fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists commands.\n");
 

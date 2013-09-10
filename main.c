@@ -533,16 +533,6 @@ log_in (const char *user_name, int user_id, int register_checkin)
 
   cmd_ls ();
 
-  SQL_Query ("SELECT price, flag FROM active_members WHERE account = %d", user_id);
-
-  int membership_price;
-  membership_price = strtol(SQL_Value(0, 0), 0, 0);
-
-  const char *f = SQL_Value(0, 1);
-  int len = strlen(f);
-  char flag[len];
-  strcpy(flag, f);
-
   for (;;)
     {
       char *prompt, *argv0, *endptr;
@@ -583,13 +573,23 @@ log_in (const char *user_name, int user_id, int register_checkin)
 
       argv0 = ARRAY_GET (&argv, 0);
 
-      if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp(argv0, "help") != 0 && strcmp(flag, "m_office") != 0)
+      if (strcmp(user_name, "deficit") != 0 && strcmp(user_name, "deposit") != 0)
         {
-          fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists commands.\n");
+          SQL_Query ("SELECT price, flag FROM active_members WHERE account = %d", user_id);
 
-          ARRAY_FREE (&argv);
-          free (command);
-          continue;
+          int membership_price;
+          membership_price = strtol(SQL_Value(0, 0), 0, 0);
+
+          const char *flag = SQL_Value(0, 1);
+
+          if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp(argv0, "help") != 0 && strcmp(flag, "m_office") != 0)
+            {
+              fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists commands.\n");
+
+              ARRAY_FREE (&argv);
+              free (command);
+              continue;
+            }
         }
 
       if (!strcmp (argv0, "give") && argc == 3)

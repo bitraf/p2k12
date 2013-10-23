@@ -891,7 +891,7 @@ register_member ()
     {
       SQL_Query ("COMMIT");
       printf ("\n"
-              "Payment information is in the mail\n");
+              "Congratulations you are now member of Oslo's biggest hackerspace.\n");
     }
 
   printf ("\n");

@@ -852,7 +852,7 @@ register_member ()
       if (!*price)
         {
           free (price);
-          price = strdup ("aktiv");
+          price = "500";
         }
       else
         {

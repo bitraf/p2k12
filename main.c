@@ -891,7 +891,10 @@ register_member ()
     {
       SQL_Query ("COMMIT");
       printf ("\n"
-              "Congratulations you are now member of Oslo's biggest hackerspace.\n");
+              "Congratulations you are now member of Oslo's biggest hackerspace.\n"
+              "\nMembership bills are sent the first monday in the month.\n"
+              "It's recommended to setup automatic monthly payment to our account 1503.273.5581\n"
+              "BIC: DNBANOKKXXX\nIBAN: NO3215032735581\nBank: DNB\n");
     }
 
   printf ("\n");

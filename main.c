@@ -725,7 +725,8 @@ log_in (const char *user_name, int user_id, int register_checkin)
                    "retdeposit AMOUNT            return deposit taken from storage to p2k12\n"
                    "undo TRANSACTION             undo a transaction\n"
                    "help                         display this help text\n"
-                   "[0-9]+ COUNT                 buy a product\n");
+                   "[0-9]+ COUNT                 buy a product\n"
+                   "\n\nUse SHIFT+[PAGE_UP, PAGE_DOWN] too see previous commands or output\n");
         }
       else if (strtol (argv0, &endptr, 0) && !*endptr)
         {

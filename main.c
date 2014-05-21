@@ -228,6 +228,13 @@ cmd_become (int user_id, const char *price)
 }
 
 static void
+cmd_officeuser(int user_id)
+{
+  SQL_Query ("INSERT INTO members (full_name, email, price, account, flag) SELECT full_name, email, price, account, %s  FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", "m_office", user_id);
+  printf("m_office flag set\n");
+}
+
+static void
 cmd_addstock (int user_id, const char *product_id, const char *sum_value, const char *stock)
 {
   char *endptr;
@@ -582,9 +589,10 @@ log_in (const char *user_name, int user_id, int register_checkin)
 
           const char *flag = SQL_Value(0, 1);
 
-          if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp(argv0, "help") != 0 && strcmp(flag, "m_office") != 0)
+          if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp(argv0, "help") != 0 && strcmp(flag, "m_office") != 0
+              && strcmp(argv0, "officeuser") != 0)
             {
-              fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists commands.\n");
+              fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists public commands.\n");
 
               ARRAY_FREE (&argv);
               free (command);
@@ -648,6 +656,10 @@ log_in (const char *user_name, int user_id, int register_checkin)
             cmd_become (user_id, ARRAY_GET (&argv, 1));
           else
             fprintf (stderr, "Usage: %s <PRICE>\n", argv0);
+        }
+      else if (!strcmp (argv0, "officeuser"))
+        {
+          cmd_officeuser(user_id);
         }
       else if (!strcmp (argv0, "addproduct"))
         {

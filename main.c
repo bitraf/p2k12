@@ -590,7 +590,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
           const char *flag = SQL_Value(0, 1);
 
           if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp(argv0, "help") != 0 && strcmp(flag, "m_office") != 0
-              && strcmp(argv0, "officeuser") != 0)
+              && strcmp(argv0, "officeuser") != 0 && strcmp(argv0, "lastlog") != 0)
             {
               fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists public commands.\n");
 

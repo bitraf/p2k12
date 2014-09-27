@@ -285,6 +285,7 @@ cmd_lastlog (int user_id, const char *variant)
       else
         {
           fprintf (stderr, "Usage: lastlog [day, week, year]\n");
+          return ;
         }
     }
   else

@@ -265,20 +265,47 @@ cmd_addstock (int user_id, const char *product_id, const char *sum_value, const 
 }
 
 static void
-cmd_lastlog (int user_id)
+cmd_lastlog (int user_id, const char *variant)
 {
-  size_t i;
 
-  SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account)", user_id);
-
-  printf ("%19s %-7s %-7s %8s %5s %-20s %-20s\n",
-          "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
-
-  for (i = 0; i < SQL_RowCount(); ++i)
+  if (variant != NULL)
     {
-      printf ("%19.*s %7s %7s %8s %5s %-20s %-20s\n",
-              19, SQL_Value (i, 8), SQL_Value (i, 0), SQL_Value (i, 3), SQL_Value (i, 4), SQL_Value (i, 5), SQL_Value (i, 6), SQL_Value (i, 7));
+      if (!strcmp(variant, "d") || !strcmp(variant, "day"))
+        {
+          SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND date > CURRENT_TIMESTAMP - INTERVAL '1 day'", user_id);
+        }
+      else if (!strcmp(variant, "w") || !strcmp(variant, "week"))
+        {
+          SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND date > CURRENT_TIMESTAMP - INTERVAL '7 days'", user_id);
+        }
+      else if (!strcmp(variant, "y") || !strcmp(variant, "year"))
+        {
+          SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND EXTRACT(YEAR FROM date)=EXTRACT(YEAR FROM NOW())", user_id);
+        }
+      else
+        {
+          fprintf (stderr, "Usage: lastlog [day, week, year]\n");
+        }
     }
+  else
+    {
+      SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account)", user_id);
+    }
+
+  unsigned int rowCount = SQL_RowCount();
+  if (rowCount > 0)
+    {
+      printf ("%19s %-7s %-7s %8s %5s %-20s %-20s\n",
+          "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
+      size_t i;
+      for (i = 0; i < rowCount; ++i)
+        {
+          printf ("%19.*s %7s %7s %8s %5s %-20s %-20s\n",
+                  19, SQL_Value (i, 8), SQL_Value (i, 0), SQL_Value (i, 3), SQL_Value (i, 4), SQL_Value (i, 5), SQL_Value (i, 6), SQL_Value (i, 7));
+        }
+    }
+  else
+    printf("No transactions found.\n");
 }
 
 static void
@@ -693,10 +720,12 @@ log_in (const char *user_name, int user_id, int register_checkin)
         }
       else if (!strcmp (argv0, "lastlog"))
         {
-          if (argc == 1)
-            cmd_lastlog (user_id);
+          if (argc == 2)
+            cmd_lastlog(user_id, ARRAY_GET(&argv, 1));
+          else if (argc == 1)
+            cmd_lastlog (user_id, 0);
           else
-            fprintf (stderr, "Usage: %s\n", argv0);
+            fprintf (stderr, "Usage: %s [day, week, year]\n", argv0);
         }
       else if (!strcmp (argv0, "checkins"))
         {
@@ -754,7 +783,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
                    "addstock PRODUCT-ID SUM-VALUE STOCK\n"
                    "                             adds STOCK items of product with ID PRODUCT-ID\n"
                    "                               and total value SUM-VALUE to stock\n"
-                   "lastlog                      list all transactions involving you\n"
+                   "lastlog [day, week, year]    list all transactions involving you\n"
                    "passwd REALM                 set password for given realm\n"
                    "                               realms: door, login\n"
                    "products                     list all products and their IDs\n"

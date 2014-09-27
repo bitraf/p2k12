@@ -282,6 +282,22 @@ cmd_lastlog (int user_id)
 }
 
 static void
+cmd_checkins (int user_id)
+{
+  size_t i;
+
+  SQL_Query("SELECT date, type FROM checkins WHERE account=%d", user_id);
+
+  printf ("%-19s %-7s\n",
+          "Date", "Type");
+
+  for (i = 0; i < SQL_RowCount(); ++i)
+    {
+      printf ("%19.*s %7s\n", 19, SQL_Value(i, 0), SQL_Value(i, 1));
+    }
+}
+
+static void
 gensalt (char *salt)
 {
   FILE *f;
@@ -682,6 +698,13 @@ log_in (const char *user_name, int user_id, int register_checkin)
           else
             fprintf (stderr, "Usage: %s\n", argv0);
         }
+      else if (!strcmp (argv0, "checkins"))
+        {
+          if (argc == 1)
+            cmd_checkins (user_id);
+          else
+            fprintf (stderr, "Usage: %s\n", argv0);
+        }
       else if (!strcmp (argv0, "passwd"))
         {
           if (argc == 2)
@@ -723,6 +746,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
                    "become PRICE                 switch membership price to PRICE\n"
                    "                                prices: 0, 300, 500, 1000, 1500\n"
                    "checkin                      register arrival to space\n"
+                   "checkins                     list all your registered checkins\n"
                    "checkout                     register departure from space\n"
                    "give USER AMOUNT             give AMOUNT to USER from own account\n"
                    "take USER AMOUNT             take AMOUNT from USER to own account\n"

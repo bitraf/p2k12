@@ -224,6 +224,14 @@ cmd_become (int user_id, const char *price)
     }
 
   SQL_Query ("INSERT INTO members (full_name, email, price, account) SELECT full_name, email, %s, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", price, user_id);
+  printf("Your membership has been changed to type: %s\n", price);
+}
+
+static void
+cmd_officeuser(int user_id)
+{
+  SQL_Query ("INSERT INTO members (full_name, email, price, account, flag) SELECT full_name, email, price, account, %s  FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", "m_office", user_id);
+  printf("m_office flag set\n");
 }
 
 static void
@@ -257,19 +265,63 @@ cmd_addstock (int user_id, const char *product_id, const char *sum_value, const 
 }
 
 static void
-cmd_lastlog (int user_id)
+cmd_lastlog (int user_id, const char *variant)
+{
+
+  if (variant != NULL)
+    {
+      if (!strcmp(variant, "d") || !strcmp(variant, "day"))
+        {
+          SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND date > CURRENT_TIMESTAMP - INTERVAL '1 day'", user_id);
+        }
+      else if (!strcmp(variant, "w") || !strcmp(variant, "week"))
+        {
+          SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND date > CURRENT_TIMESTAMP - INTERVAL '7 days'", user_id);
+        }
+      else if (!strcmp(variant, "y") || !strcmp(variant, "year"))
+        {
+          SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND EXTRACT(YEAR FROM date)=EXTRACT(YEAR FROM NOW())", user_id);
+        }
+      else
+        {
+          fprintf (stderr, "Usage: lastlog [day, week, year]\n");
+          return ;
+        }
+    }
+  else
+    {
+      SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account)", user_id);
+    }
+
+  unsigned int rowCount = SQL_RowCount();
+  if (rowCount > 0)
+    {
+      printf ("%19s %-7s %-7s %8s %5s %-20s %-20s\n",
+          "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
+      size_t i;
+      for (i = 0; i < rowCount; ++i)
+        {
+          printf ("%19.*s %7s %7s %8s %5s %-20s %-20s\n",
+                  19, SQL_Value (i, 8), SQL_Value (i, 0), SQL_Value (i, 3), SQL_Value (i, 4), SQL_Value (i, 5), SQL_Value (i, 6), SQL_Value (i, 7));
+        }
+    }
+  else
+    printf("No transactions found.\n");
+}
+
+static void
+cmd_checkins (int user_id)
 {
   size_t i;
 
-  SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account)", user_id);
+  SQL_Query("SELECT date, type FROM checkins WHERE account=%d", user_id);
 
-  printf ("%19s %-7s %-7s %8s %5s %-20s %-20s\n",
-          "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
+  printf ("%-19s %-7s\n",
+          "Date", "Type");
 
   for (i = 0; i < SQL_RowCount(); ++i)
     {
-      printf ("%19.*s %7s %7s %8s %5s %-20s %-20s\n",
-              19, SQL_Value (i, 8), SQL_Value (i, 0), SQL_Value (i, 3), SQL_Value (i, 4), SQL_Value (i, 5), SQL_Value (i, 6), SQL_Value (i, 7));
+      printf ("%19.*s %7s\n", 19, SQL_Value(i, 0), SQL_Value(i, 1));
     }
 }
 
@@ -464,6 +516,23 @@ cmd_undo (const char *transaction)
 }
 
 static void
+cmd_checkin (const char *user_name, int user_id, int checkin_type)
+{
+  if (checkin_type == 0)
+    {
+      if (strcmp (user_name, "deficit"))
+        SQL_Query ("INSERT INTO checkins (account, type) VALUES (%d, 'checkout')", user_id);
+    }
+  else if (checkin_type == 1)
+    {
+      if (strcmp (user_name, "deficit"))
+        SQL_Query ("INSERT INTO checkins (account, type) VALUES (%d, 'checkin')", user_id);
+    }
+
+  printf("You're now checked %s.\n", checkin_type == 0 ? "out" : "in");
+}
+
+static void
 log_in (const char *user_name, int user_id, int register_checkin)
 {
   char *command;
@@ -474,8 +543,8 @@ log_in (const char *user_name, int user_id, int register_checkin)
           "Press Ctrl-D to terminate session.  Type \"help\" for help\n"
           "\n");
 
-  if (strcmp (user_name, "deficit") && register_checkin)
-    SQL_Query ("INSERT INTO checkins (account) VALUES (%d)", user_id);
+  if (register_checkin)
+    cmd_checkin(user_name, user_id, 1);
 
   cmd_ls ();
 
@@ -519,6 +588,26 @@ log_in (const char *user_name, int user_id, int register_checkin)
 
       argv0 = ARRAY_GET (&argv, 0);
 
+      if (strcmp(user_name, "deficit") != 0 && strcmp(user_name, "deposit") != 0)
+        {
+          SQL_Query ("SELECT price, flag FROM active_members WHERE account = %d", user_id);
+
+          int membership_price;
+          membership_price = strtol(SQL_Value(0, 0), 0, 0);
+
+          const char *flag = SQL_Value(0, 1);
+
+          if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp(argv0, "help") != 0 && strcmp(flag, "m_office") != 0
+              && strcmp(argv0, "officeuser") != 0 && strcmp(argv0, "lastlog") != 0)
+            {
+              fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists public commands.\n");
+
+              ARRAY_FREE (&argv);
+              free (command);
+              continue;
+            }
+        }
+
       if (!strcmp (argv0, "give") && argc == 3)
         {
           char *target, *amount;
@@ -531,9 +620,9 @@ log_in (const char *user_name, int user_id, int register_checkin)
               fprintf (stderr, "You cannot give away negative amounts\n");
             }
           else if (-1 != SQL_Query ("BEGIN")
-                && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('give')")
-                && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency) VALUES (LASTVAL(), %d, (SELECT id FROM accounts WHERE name = %s), %s::NUMERIC, 'NOK')", user_id, target, amount)
-                && -1 != SQL_Query ("COMMIT"))
+                   && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('give')")
+                   && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency) VALUES (LASTVAL(), %d, (SELECT id FROM accounts WHERE name = %s), %s::NUMERIC, 'NOK')", user_id, target, amount)
+                   && -1 != SQL_Query ("COMMIT"))
             {
               fprintf (stderr, "Commited to transaction log: %s gives %s %s NOK\n", user_name, target, amount);
             }
@@ -556,9 +645,9 @@ log_in (const char *user_name, int user_id, int register_checkin)
               fprintf (stderr, "You cannot take negative amounts\n");
             }
           else if (-1 != SQL_Query ("BEGIN")
-                && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('take')")
-                && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency) VALUES (LASTVAL(), (SELECT id FROM accounts WHERE name = %s), %d, %s::NUMERIC, 'NOK')", target, user_id, amount)
-                && -1 != SQL_Query ("COMMIT"))
+                   && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('take')")
+                   && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency) VALUES (LASTVAL(), (SELECT id FROM accounts WHERE name = %s), %d, %s::NUMERIC, 'NOK')", target, user_id, amount)
+                   && -1 != SQL_Query ("COMMIT"))
             {
               fprintf (stderr, "Commited to transaction log: %s takes %s NOK from %s\n", user_name, amount, target);
             }
@@ -576,6 +665,10 @@ log_in (const char *user_name, int user_id, int register_checkin)
           else
             fprintf (stderr, "Usage: %s <PRICE>\n", argv0);
         }
+      else if (!strcmp (argv0, "officeuser"))
+        {
+          cmd_officeuser(user_id);
+        }
       else if (!strcmp (argv0, "addproduct"))
         {
           if (argc == 2)
@@ -592,8 +685,17 @@ log_in (const char *user_name, int user_id, int register_checkin)
         }
       else if (!strcmp (argv0, "lastlog"))
         {
+          if (argc == 2)
+            cmd_lastlog(user_id, ARRAY_GET(&argv, 1));
+          else if (argc == 1)
+            cmd_lastlog (user_id, 0);
+          else
+            fprintf (stderr, "Usage: %s [day, week, year]\n", argv0);
+        }
+      else if (!strcmp (argv0, "checkins"))
+        {
           if (argc == 1)
-            cmd_lastlog (user_id);
+            cmd_checkins (user_id);
           else
             fprintf (stderr, "Usage: %s\n", argv0);
         }
@@ -637,20 +739,24 @@ log_in (const char *user_name, int user_id, int register_checkin)
           fprintf (stderr,
                    "become PRICE                 switch membership price to PRICE\n"
                    "                                prices: 0, 300, 500, 1000, 1500\n"
+                   "checkin                      register arrival to space\n"
+                   "checkins                     list all your registered checkins\n"
+                   "checkout                     register departure from space\n"
                    "give USER AMOUNT             give AMOUNT to USER from own account\n"
                    "take USER AMOUNT             take AMOUNT from USER to own account\n"
                    "addproduct NAME              adds PRODUCT to the inventory\n"
                    "addstock PRODUCT-ID SUM-VALUE STOCK\n"
                    "                             adds STOCK items of product with ID PRODUCT-ID\n"
                    "                               and total value SUM-VALUE to stock\n"
-                   "lastlog                      list all transactions involving you\n"
+                   "lastlog [day, week, year]    list all transactions involving you\n"
                    "passwd REALM                 set password for given realm\n"
                    "                               realms: door, login\n"
                    "products                     list all products and their IDs\n"
                    "retdeposit AMOUNT            return deposit taken from storage to p2k12\n"
                    "undo TRANSACTION             undo a transaction\n"
                    "help                         display this help text\n"
-                   "[0-9]+ COUNT                 buy a product\n");
+                   "[0-9]+ COUNT                 buy a product\n"
+                   "\n\nUse SHIFT+[PAGE_UP, PAGE_DOWN] too see previous commands or output\n");
         }
       else if (strtol (argv0, &endptr, 0) && !*endptr)
         {
@@ -659,7 +765,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
           if (argc > 2)
             fprintf (stderr, "Usage: <PRODUCT-ID> [COUNT]\n");
           else if (-1 == SQL_Query ("SELECT name FROM accounts WHERE (id = %s::INTEGER OR name = %s) AND type = 'product'", argv0, argv0)
-              || !SQL_RowCount ())
+                   || !SQL_RowCount ())
             {
               fprintf (stderr, "Bad product ID\n");
             }
@@ -692,6 +798,20 @@ log_in (const char *user_name, int user_id, int register_checkin)
 
               free (product_name);
             }
+        }
+      else if (!strcmp (argv0, "checkin"))
+        {
+          if (argc == 1)
+            cmd_checkin (user_name, user_id, 1);
+          else
+            fprintf (stderr, "Usage: %s\n", argv0);
+        }
+      else if (!strcmp (argv0, "checkout"))
+        {
+          if (argc == 1)
+            cmd_checkin (user_name, user_id, 0);
+          else
+            fprintf (stderr, "Usage: %s\n", argv0);
         }
       else
         fprintf (stderr, "Unknown command '%s'.  Try 'help'\n", argv0);
@@ -763,7 +883,7 @@ register_member ()
       if (!*price)
         {
           free (price);
-          price = strdup ("aktiv");
+          price = "500";
         }
       else
         {
@@ -771,7 +891,7 @@ register_member ()
               && strcmp (price, "1000")
               && strcmp (price, "300")
               && strcmp (price, "0")
-              )
+          )
             {
               printf ("Specify either \"500\", \"1000\", \"300\", or \"0\"\n");
 
@@ -802,7 +922,10 @@ register_member ()
     {
       SQL_Query ("COMMIT");
       printf ("\n"
-              "Payment information is in the mail\n");
+              "Congratulations you are now member of Oslo's biggest hackerspace.\n"
+              "\nMembership bills are sent the first monday in the month.\n"
+              "It's recommended to setup automatic monthly payment to our account 1503.273.5581\n"
+              "BIC: DNBANOKKXXX\nIBAN: NO3215032735581\nBank: DNB\n");
     }
 
   printf ("\n");

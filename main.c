@@ -945,7 +945,12 @@ main (int argc, char** argv)
 
   setenv ("TZ", "CET", 1);
 
-  SQL_Init ("dbname=p2k12 user=p2k12");
+  // The certificate from bomba.bitraf.no needs to exist in
+  // $HOME/.postgresql/root.crt.
+  //
+  // The password should be listed in $HOME/.pgpass.
+  SQL_Init ("user=p2k12_pos dbname=p2k12 host=bomba.bitraf.no sslmode=verify-full");
+
   SQL_Query ("SET TIME ZONE 'CET'");
 
   enable_icanon ();

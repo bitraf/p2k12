@@ -546,42 +546,6 @@ log_in (const char *user_name, int user_id, int register_checkin)
   if (register_checkin)
     cmd_checkin(user_name, user_id, 1);
 
-#if 0
-  SQL_Query ("SELECT COALESCE(type, 'aktiv') FROM active_members WHERE account = %d ORDER BY id DESC", user_id);
-
-  if (SQL_RowCount () && !strcmp (SQL_Value (0, 0), "none"))
-    {
-      SQL_Query ("SELECT * FROM transactions t INNER JOIN transaction_lines tl ON tl.transaction = t.id WHERE tl.credit_account IN (SELECT id FROM accounts WHERE type = 'p2k12') AND tl.debit_account = %d AND date > NOW() - INTERVAL '24 hour'", user_id);
-
-      if (!SQL_RowCount ())
-        {
-          char *response;
-
-          printf ("You need to pay 35 NOK to use p2k12 for the next 24 hours\n"
-                  "\n");
-
-          response = trim (readline (GREEN_ON "Type \"pay\" (without quotes) to pay> " GREEN_OFF));
-
-          if (!response || strcmp (response, "pay"))
-            return;
-
-          if (-1 != SQL_Query ("BEGIN")
-              && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('p2k12 day user')")
-              && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) VALUES (LASTVAL(), %d, (SELECT id FROM accounts WHERE name = 'p2k12 day users' LIMIT 1), 35, 'NOK', 1)", user_id)
-              && -1 != SQL_Query ("COMMIT"))
-            {
-              printf ("Commited to transaction log: %s buys 24 hour p2k12 membership\n", user_name);
-            }
-          else
-            {
-              SQL_Query ("ROLLBACK");
-              printf ("SQL Error; Did not commit anything\n");
-            }
-
-        }
-    }
-#endif
-
   cmd_ls ();
 
   for (;;)
@@ -981,7 +945,12 @@ main (int argc, char** argv)
 
   setenv ("TZ", "CET", 1);
 
-  SQL_Init ("dbname=p2k12 user=p2k12");
+  // The certificate from bomba.bitraf.no needs to exist in
+  // $HOME/.postgresql/root.crt.
+  //
+  // The password should be listed in $HOME/.pgpass.
+  SQL_Init ("user=p2k12_pos dbname=p2k12 host=bomba.bitraf.no sslmode=verify-full");
+
   SQL_Query ("SET TIME ZONE 'CET'");
 
   enable_icanon ();

@@ -4,15 +4,14 @@ require_once('Mail.php');
 setlocale (LC_ALL, 'nb_NO.UTF-8');
 date_default_timezone_set ('Europe/Oslo');
 
-if (false === $dbcon = pg_connect("dbname=p2k12 user=p2k12"))
+$db_connect_string = 'user=p2k12_pos dbname=p2k12 host=bomba.bitraf.no';
+if (false === $dbcon = pg_connect($db_connect_string))
   exit;
 
 $res = pg_query(<<<SQL
 SELECT ub.id, ub.balance, full_Name, email, name FROM user_balances ub INNER JOIN active_members m ON m.account = ub.id WHERE balance > 0;
 SQL
   );
-
-
 
 if (false === $res)
   exit;
@@ -22,6 +21,10 @@ while ($row = pg_fetch_assoc($res))
   $recipient = $row['email'];
   $subject = "p2k12: Du har negativ pengebeholdning";
   $member_price = pg_query_params($dbcon, "SELECT price FROM active_members WHERE account=$1", array($row['id'])); 
+
+  echo "recipient: ".$recipient;
+  echo " name: ".$row['name'];
+
 if ($member_price)
   {
     $member_price = pg_fetch_assoc($member_price);
@@ -51,8 +54,8 @@ penger enn du har satt inn.  {$approach} inn penger på kontonummer
 som tilhører
 
   Alexander Alemayhu
-  Vetlandsveien 41
-  0671 OSLO
+  Gunnar Schjelderups vei 33
+  0485 OSLO
 
 med betalingsinformasjon
 

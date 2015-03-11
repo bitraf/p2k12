@@ -143,18 +143,6 @@ argv_parse (stringlist *result, char *str)
 }
 
 static void
-disable_icanon (void)
-{
-  struct termios t;
-
-  tcgetattr(0, &t);
-
-  t.c_lflag &= ~ICANON;
-
-  tcsetattr(0, TCSANOW, &t);
-}
-
-static void
 disable_echo (void)
 {
   struct termios t;
@@ -824,10 +812,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
 void
 register_member ()
 {
-  char *name;
   char *user_name;
-  char *email;
-  char *price;
 
   struct termios t;
 
@@ -857,85 +842,9 @@ register_member ()
       return;
     }
 
-  name = trim (readline (GREEN_ON "Your full name (e.g. Ærling Øgilsblå): " GREEN_OFF));
-
-  if (!name || !*name)
-    exit (EXIT_FAILURE);
-
-
-  email = trim (readline (GREEN_ON "Your current e-mail address: " GREEN_OFF));
-
-  if (!email || !*email || !strchr (email, '@') || !strchr (email, '.'))
-    exit (EXIT_FAILURE);
-
-  printf ("Membership price\n");
-  printf ("     aktiv      500 kr per month\n");
-  printf ("  OR filantrop 1000 kr per month\n");
-  printf ("  OR støtte     300 kr per month\n");
-  printf ("  OR none         0 kr per month\n");
-  for (;;)
-    {
-      price = trim (readline (GREEN_ON "Membership price (default is 500): " GREEN_OFF));
-
-      if (!price)
-        exit (EXIT_FAILURE);
-
-      if (!*price)
-        {
-          free (price);
-          price = "500";
-        }
-      else
-        {
-          if (strcmp (price, "500")
-              && strcmp (price, "1000")
-              && strcmp (price, "300")
-              && strcmp (price, "0")
-          )
-            {
-              printf ("Specify either \"500\", \"1000\", \"300\", or \"0\"\n");
-
-              continue;
-            }
-        }
-
-      break;
-    }
-
-  SQL_Query ("BEGIN");
-  SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'user')", user_name);
-
-  SQL_Query ("INSERT INTO checkins (account) VALUES (CURRVAL('accounts_id_seq'::REGCLASS))");
-  if (-1 == SQL_Query ("INSERT INTO members (full_name, email, price, account) VALUES (%s, %s, %s, CURRVAL('accounts_id_seq'::REGCLASS))", name, email, price))
-    {
-      SQL_Query ("ROLLBACK");
-      printf ("\n"
-              "Failed to store member information\n");
-    }
-  else if (!strcmp (price, "none"))
-    {
-      SQL_Query ("COMMIT");
-      printf ("\n"
-              "Okay\n");
-    }
-  else
-    {
-      SQL_Query ("COMMIT");
-      printf ("\n"
-              "Congratulations you are now member of Oslo's biggest hackerspace.\n"
-              "\nMembership bills are sent the first monday in the month.\n"
-              "It's recommended to setup automatic monthly payment to our account 1503.273.5581\n"
-              "BIC: DNBANOKKXXX\nIBAN: NO3215032735581\nBank: DNB\n");
-    }
-
-  printf ("\n");
-  printf ("Press a key to clear the screen\n");
-
-  disable_icanon ();
-  disable_echo ();
-  getchar ();
-  enable_icanon ();
-  enable_echo ();
+  printf("Use bitraf.no/join to register.\n");
+  printf("Press a key to clear the screen");
+  getchar();
 }
 
 int
@@ -983,6 +892,5 @@ main (int argc, char** argv)
     }
 
   register_member ();
-
   return EXIT_SUCCESS;
 }

@@ -812,39 +812,40 @@ log_in (const char *user_name, int user_id, int register_checkin)
 void
 register_member ()
 {
-  char *user_name;
-
-  struct termios t;
-
-  tcgetattr(0, &t);
-
-  t.c_lflag = 0xa3b;
-
-  tcsetattr(0, TCSANOW, &t);
-
-  setlocale (LC_CTYPE, "en_US.UTF-8");
-
-  printf ("Press Ctrl-C at any time to discard all input\n"
-          "\n");
-
-  user_name = trim (readline (GREEN_ON "Your (desired) user name: " GREEN_OFF));
-
-  if (!user_name || !*user_name)
-    exit (EXIT_FAILURE);
-
-  if (-1 == SQL_Query("SELECT id FROM accounts WHERE name = %s", user_name))
-    errx (EXIT_FAILURE, "SQL query failed");
-
-  if (SQL_RowCount ())
+  for (;;)
     {
-      log_in (user_name, atoi (SQL_Value (0, 0)), 1);
+      char *user_name;
 
-      return;
+      struct termios t;
+
+      tcgetattr(0, &t);
+
+      t.c_lflag = 0xa3b;
+
+      tcsetattr(0, TCSANOW, &t);
+
+      setlocale (LC_CTYPE, "en_US.UTF-8");
+
+      printf ("Go to https://bitraf.no/join to register a new member\n"
+              "\n");
+
+      user_name = trim (readline (GREEN_ON "Your user name: " GREEN_OFF));
+
+      if (!user_name || !*user_name)
+        exit (EXIT_FAILURE);
+
+      if (-1 == SQL_Query("SELECT id FROM accounts WHERE name = %s", user_name))
+        errx (EXIT_FAILURE, "SQL query failed");
+
+      if (SQL_RowCount ())
+        {
+          log_in (user_name, atoi (SQL_Value (0, 0)), 1);
+
+          return;
+        }
+
+      printf("Username not recognized.\n\n");
     }
-
-  printf("Use bitraf.no/join to register.\n");
-  printf("Press a key to clear the screen");
-  getchar();
 }
 
 int

@@ -834,11 +834,13 @@ register_member ()
       if (!user_name || !*user_name)
         exit (EXIT_FAILURE);
 
-      if (-1 == SQL_Query("SELECT id FROM accounts WHERE LOWER(name) = LOWER(%s)", user_name))
+      if (-1 == SQL_Query("SELECT id, name FROM accounts WHERE LOWER(name) = LOWER(%s)", user_name))
         errx (EXIT_FAILURE, "SQL query failed");
 
       if (SQL_RowCount ())
         {
+          user_name = strdup (SQL_Value (0, 1));
+
           log_in (user_name, atoi (SQL_Value (0, 0)), 1);
 
           return;

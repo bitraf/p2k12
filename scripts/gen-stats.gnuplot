@@ -36,5 +36,6 @@ unset border
 set format x "%b %Y"
 
 set title "Stripe payments 1 month moving average"
+set xlabel "NOK/month"
 
-plot "/home/webapps/live/charts/data/stripe-payments.txt" using 1:($2*365.24/12) with lines title "Payments" linecolor rgb "#ff0000" linewidth 2
+plot "/home/webapps/live/charts/data/stripe-payments.txt" using 1:2 with lines notitle linecolor rgb "#ff0000" linewidth 2

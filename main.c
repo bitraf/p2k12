@@ -147,11 +147,11 @@ disable_echo (void)
 {
   struct termios t;
 
-  tcgetattr(0, &t);
+  tcgetattr (0, &t);
 
   t.c_lflag &= ~ECHO;
 
-  tcsetattr(0, TCSANOW, &t);
+  tcsetattr (0, TCSANOW, &t);
 }
 
 static void
@@ -159,11 +159,11 @@ enable_icanon (void)
 {
   struct termios t;
 
-  tcgetattr(0, &t);
+  tcgetattr (0, &t);
 
   t.c_lflag |= ICANON;
 
-  tcsetattr(0, TCSANOW, &t);
+  tcsetattr (0, TCSANOW, &t);
 }
 
 static void
@@ -171,11 +171,11 @@ enable_echo (void)
 {
   struct termios t;
 
-  tcgetattr(0, &t);
+  tcgetattr (0, &t);
 
   t.c_lflag |= ECHO;
 
-  tcsetattr(0, TCSANOW, &t);
+  tcsetattr (0, TCSANOW, &t);
 }
 
 static long long
@@ -212,14 +212,14 @@ cmd_become (int user_id, const char *price)
     }
 
   SQL_Query ("INSERT INTO members (full_name, email, price, account) SELECT full_name, email, %s, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", price, user_id);
-  printf("Your membership has been changed to type: %s\n", price);
+  printf ("Your membership has been changed to type: %s\n", price);
 }
 
 static void
-cmd_officeuser(int user_id)
+cmd_officeuser (int user_id)
 {
   SQL_Query ("INSERT INTO members (full_name, email, price, account, flag) SELECT full_name, email, price, account, %s  FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", "m_office", user_id);
-  printf("m_office flag set\n");
+  printf ("m_office flag set\n");
 }
 
 static void
@@ -258,22 +258,22 @@ cmd_lastlog (int user_id, const char *variant)
 
   if (variant != NULL)
     {
-      if (!strcmp(variant, "d") || !strcmp(variant, "day"))
+      if (!strcmp (variant, "d") || !strcmp (variant, "day"))
         {
           SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND date > CURRENT_TIMESTAMP - INTERVAL '1 day'", user_id);
         }
-      else if (!strcmp(variant, "w") || !strcmp(variant, "week"))
+      else if (!strcmp (variant, "w") || !strcmp (variant, "week"))
         {
           SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND date > CURRENT_TIMESTAMP - INTERVAL '7 days'", user_id);
         }
-      else if (!strcmp(variant, "y") || !strcmp(variant, "year"))
+      else if (!strcmp (variant, "y") || !strcmp (variant, "year"))
         {
           SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account) AND EXTRACT(YEAR FROM date)=EXTRACT(YEAR FROM NOW())", user_id);
         }
       else
         {
           fprintf (stderr, "Usage: lastlog [day, week, year]\n");
-          return ;
+          return;
         }
     }
   else
@@ -281,11 +281,11 @@ cmd_lastlog (int user_id, const char *variant)
       SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account)", user_id);
     }
 
-  unsigned int rowCount = SQL_RowCount();
+  unsigned int rowCount = SQL_RowCount ();
   if (rowCount > 0)
     {
       printf ("%19s %-7s %-7s %8s %5s %-20s %-20s\n",
-          "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
+              "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
       size_t i;
       for (i = 0; i < rowCount; ++i)
         {
@@ -294,7 +294,7 @@ cmd_lastlog (int user_id, const char *variant)
         }
     }
   else
-    printf("No transactions found.\n");
+    printf ("No transactions found.\n");
 }
 
 static void
@@ -302,14 +302,14 @@ cmd_checkins (int user_id)
 {
   size_t i;
 
-  SQL_Query("SELECT date, type FROM checkins WHERE account=%d", user_id);
+  SQL_Query ("SELECT date, type FROM checkins WHERE account=%d", user_id);
 
   printf ("%-19s %-7s\n",
           "Date", "Type");
 
-  for (i = 0; i < SQL_RowCount(); ++i)
+  for (i = 0; i < SQL_RowCount (); ++i)
     {
-      printf ("%19.*s %7s\n", 19, SQL_Value(i, 0), SQL_Value(i, 1));
+      printf ("%19.*s %7s\n", 19, SQL_Value (i, 0), SQL_Value (i, 1));
     }
 }
 
@@ -319,51 +319,51 @@ gensalt (char *salt)
   FILE *f;
   unsigned int i;
 
-  if (0 == (f = fopen("/dev/urandom", "r")))
-    err(EXIT_FAILURE, "Failed to open /dev/urandom for reading");
+  if (0 == (f = fopen ("/dev/urandom", "r")))
+    err (EXIT_FAILURE, "Failed to open /dev/urandom for reading");
 
-  strcpy(salt, "$6$");
+  strcpy (salt, "$6$");
 
-  fread(salt + 3, 1, 9, f);
+  fread (salt + 3, 1, 9, f);
 
   for (i = 0; i < 9; ++i)
     {
       salt[i + 3] = (salt[i + 3] & 0x7f) | 0x40;
 
-      if (!isalpha(salt[i + 3]))
-        salt[i + 3] = 'a' + rand() % ('z' - 'a');
+      if (!isalpha (salt[i + 3]))
+        salt[i + 3] = 'a' + rand () % ('z' - 'a');
     }
 
   salt[12] = '$';
   salt[13] = 0;
 
-  fclose(f);
+  fclose (f);
 }
 
 static void
 read_password (char password[256])
 {
-  disable_echo();
+  disable_echo ();
 
   password[255] = 0;
 
-  if (!fgets(password, 255, stdin))
+  if (!fgets (password, 255, stdin))
     {
-      enable_echo();
+      enable_echo ();
 
-      printf("\n");
+      printf ("\n");
 
       if (errno == 0)
-        errx(EXIT_FAILURE, "End of file while reading password");
+        errx (EXIT_FAILURE, "End of file while reading password");
 
-      err(EXIT_FAILURE, "Error reading password: %s", strerror(errno));
+      err (EXIT_FAILURE, "Error reading password: %s", strerror (errno));
     }
 
-  password[strlen(password) - 1] = 0; /* Remove \n */
+  password[strlen (password) - 1] = 0; /* Remove \n */
 
-  enable_echo();
+  enable_echo ();
 
-  printf("\n");
+  printf ("\n");
 }
 
 static void
@@ -380,7 +380,7 @@ cmd_passwd (int user_id, const char *realm)
       return;
     }
 
-  printf("Password for realm \"%s\": ", realm);
+  printf ("Password for realm \"%s\": ", realm);
 
   read_password (password);
 
@@ -404,10 +404,10 @@ cmd_passwd (int user_id, const char *realm)
   if (chars < minchars)
     {
       printf ("Password too short (%zu of minimum %zu chars)\n"
-              "These patterns are counted as a single char:\n"
-              "  * Consecutive ASCII codes (e.g. 123, ABC, xyz)\n"
-              "  * \"hest\"\n"
-              "  * \"test\"\n",
+                  "These patterns are counted as a single char:\n"
+                  "  * Consecutive ASCII codes (e.g. 123, ABC, xyz)\n"
+                  "  * \"hest\"\n"
+                  "  * \"test\"\n",
               chars, minchars);
 
       return;
@@ -439,7 +439,7 @@ cmd_ls (void)
 
   for (i = 0; i < SQL_RowCount (); ++i)
     {
-      printf ("%-5s %-5s %7s %-20s\n", SQL_Value(i, 0), SQL_Value(i, 2), SQL_Value (i, 4), SQL_Value(i, 1));
+      printf ("%-5s %-5s %7s %-20s\n", SQL_Value (i, 0), SQL_Value (i, 2), SQL_Value (i, 4), SQL_Value (i, 1));
     }
 }
 
@@ -454,7 +454,7 @@ cmd_products (void)
 
   for (i = 0; i < SQL_RowCount (); ++i)
     {
-      printf ("%-5s %-5s %7s %-20s\n", SQL_Value(i, 0), SQL_Value(i, 2), SQL_Value (i, 3), SQL_Value(i, 1));
+      printf ("%-5s %-5s %7s %-20s\n", SQL_Value (i, 0), SQL_Value (i, 2), SQL_Value (i, 3), SQL_Value (i, 1));
     }
 }
 
@@ -517,7 +517,7 @@ cmd_checkin (const char *user_name, int user_id, int checkin_type)
         SQL_Query ("INSERT INTO checkins (account, type) VALUES (%d, 'checkin')", user_id);
     }
 
-  printf("You're now checked %s.\n", checkin_type == 0 ? "out" : "in");
+  printf ("You're now checked %s.\n", checkin_type == 0 ? "out" : "in");
 }
 
 static void
@@ -532,11 +532,11 @@ log_in (const char *user_name, int user_id, int register_checkin)
           "\n");
 
   if (register_checkin)
-    cmd_checkin(user_name, user_id, 1);
+    cmd_checkin (user_name, user_id, 1);
 
   cmd_ls ();
 
-  for (;;)
+  for (; ;)
     {
       char *prompt, *argv0, *endptr;
       stringlist argv;
@@ -551,7 +551,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
       if (!(command = trim (readline (prompt))))
         break;
 
-      add_history(command);
+      add_history (command);
 
       alarm (0);
 
@@ -576,19 +576,19 @@ log_in (const char *user_name, int user_id, int register_checkin)
 
       argv0 = ARRAY_GET (&argv, 0);
 
-      if (strcmp(user_name, "deficit") != 0 && strcmp(user_name, "deposit") != 0)
+      if (strcmp (user_name, "deficit") != 0 && strcmp (user_name, "deposit") != 0)
         {
           SQL_Query ("SELECT price, flag FROM active_members WHERE account = %d", user_id);
 
           int membership_price;
-          membership_price = strtol(SQL_Value(0, 0), 0, 0);
+          membership_price = strtol (SQL_Value (0, 0), 0, 0);
 
-          const char *flag = SQL_Value(0, 1);
+          const char *flag = SQL_Value (0, 1);
 
-          if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp(argv0, "help") != 0 && strcmp(flag, "m_office") != 0
-              && strcmp(argv0, "officeuser") != 0 && strcmp(argv0, "lastlog") != 0)
+          if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp (argv0, "help") != 0 && strcmp (flag, "m_office") != 0
+              && strcmp (argv0, "officeuser") != 0 && strcmp (argv0, "lastlog") != 0)
             {
-              fprintf(stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists public commands.\n");
+              fprintf (stderr, "p2k12 is a members only system.\nUse the become command to get more privileges.\nThe help command lists public commands.\n");
 
               ARRAY_FREE (&argv);
               free (command);
@@ -655,7 +655,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
         }
       else if (!strcmp (argv0, "officeuser"))
         {
-          cmd_officeuser(user_id);
+          cmd_officeuser (user_id);
         }
       else if (!strcmp (argv0, "addproduct"))
         {
@@ -674,7 +674,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
       else if (!strcmp (argv0, "lastlog"))
         {
           if (argc == 2)
-            cmd_lastlog(user_id, ARRAY_GET(&argv, 1));
+            cmd_lastlog (user_id, ARRAY_GET(&argv, 1));
           else if (argc == 1)
             cmd_lastlog (user_id, 0);
           else
@@ -818,11 +818,11 @@ register_member ()
 
       struct termios t;
 
-      tcgetattr(0, &t);
+      tcgetattr (0, &t);
 
       t.c_lflag = 0xa3b;
 
-      tcsetattr(0, TCSANOW, &t);
+      tcsetattr (0, TCSANOW, &t);
 
       setlocale (LC_CTYPE, "en_US.UTF-8");
 
@@ -834,7 +834,7 @@ register_member ()
       if (!user_name || !*user_name)
         exit (EXIT_FAILURE);
 
-      if (-1 == SQL_Query("SELECT id, name FROM accounts WHERE LOWER(name) = LOWER(%s)", user_name))
+      if (-1 == SQL_Query ("SELECT id, name FROM accounts WHERE LOWER(name) = LOWER(%s)", user_name))
         errx (EXIT_FAILURE, "SQL query failed");
 
       if (SQL_RowCount ())
@@ -846,12 +846,12 @@ register_member ()
           return;
         }
 
-      printf("Username not recognized.\n\n");
+      printf ("Username not recognized.\n\n");
     }
 }
 
 int
-main (int argc, char** argv)
+main (int argc, char **argv)
 {
   uid_t uid;
 
@@ -874,15 +874,15 @@ main (int argc, char** argv)
 
   using_history ();
 
-  uid = getuid();
+  uid = getuid ();
 
   if (uid != 0)
     {
       struct passwd *pw;
 
-      if (NULL != (pw = getpwuid(uid)))
+      if (NULL != (pw = getpwuid (uid)))
         {
-          if (-1 == SQL_Query("SELECT id FROM accounts WHERE name = %s", pw->pw_name))
+          if (-1 == SQL_Query ("SELECT id FROM accounts WHERE name = %s", pw->pw_name))
             errx (EXIT_FAILURE, "SQL query failed");
 
           if (SQL_RowCount ())

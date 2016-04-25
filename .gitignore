@@ -12,3 +12,8 @@
 /missing
 /p2k12
 compile
+build
+.idea
+/manage.py
+*.pyc
+.p2k12_history

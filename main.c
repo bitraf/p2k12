@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <syslog.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -23,7 +22,19 @@
 #define YELLOW_ON "\033[33;1m"
 #define YELLOW_OFF "\033[00m"
 
+#define CLEAR_SCREEN "\033[00m\033[H\033[2J"
+
 typedef ARRAY (char *) stringlist;
+
+#if P2K12_MODE == dev
+static int allow_user_creation = 1;
+static int persistent_history = 1;
+#elif P2K12_MODE == pdo
+const int allow_user_creation = 0;
+const int persistent_history = 0;
+#else
+#error Unknown P2K12_MODE
+#endif
 
 char *
 trim (char *string)
@@ -143,6 +154,18 @@ argv_parse (stringlist *result, char *str)
 }
 
 static void
+disable_icanon (void)
+{
+  struct termios t;
+
+  tcgetattr(0, &t);
+
+  t.c_lflag &= ~ICANON;
+
+  tcsetattr(0, TCSANOW, &t);
+}
+
+static void
 disable_echo (void)
 {
   struct termios t;
@@ -223,6 +246,121 @@ cmd_officeuser (int user_id)
 }
 
 static void
+cmd_dns_usage()
+{
+  fprintf (stderr, "Usage: dns add <FQDN> [4 6] <IP>\n");
+  fprintf (stderr, "Usage: dns add <FQDN> C <CNAME>\n");
+  fprintf (stderr, "Usage: dns rm <FQDN>\n");
+  fprintf (stderr, "Usage: dns list\n");
+}
+
+static void
+cmd_dns (int user_id, size_t argc, stringlist argv)
+{
+  const char *cmd;
+
+  if (argc < 2)
+    {
+      cmd_dns_usage();
+      return;
+    }
+
+  cmd = ARRAY_GET (&argv, 1);
+  if (!strcmp("add", cmd) && argc == 5)
+    {
+      const char *fqdn = ARRAY_GET (&argv, 2);
+      const char *af = ARRAY_GET (&argv, 3);
+      const char *arg4 = ARRAY_GET (&argv, 4);
+      const char *ip4, *ip6, *cname;
+
+      ip4 = NULL;
+      ip6 = NULL;
+      cname = NULL;
+
+      if (!strcmp("4", af))
+        {
+          ip4 = arg4;
+        }
+      else if (!strcmp("6", af))
+        {
+          ip6 = arg4;
+        }
+      else if (!strcmp("C", af))
+        {
+          cname = arg4;
+        }
+      else
+        {
+          cmd_dns_usage();
+          return;
+        }
+
+      if (-1 != SQL_Query("BEGIN")
+          && -1 != SQL_Query("INSERT INTO dns_entries(account, fqdn, ip4, ip6, cname) VALUES(%d, %s::TEXT, %s::CIDR, %s::CIDR, %s) RETURNING id", user_id, fqdn, ip4, ip6, cname)
+          && -1 != SQL_Query("COMMIT"))
+        {
+          fprintf (stderr, "Entry added. Now talk to ops about reloading the DNS server.\n");
+        }
+      else
+        {
+          SQL_Query ("ROLLBACK");
+        }
+    }
+  else if (!strcmp("rm", cmd) && argc == 3)
+    {
+      const char *fqdn = ARRAY_GET (&argv, 2);
+
+      if (-1 != SQL_Query("BEGIN")
+          && -1 != SQL_Query("DELETE FROM dns_entries WHERE account=%d AND fqdn=%s", user_id, fqdn)
+          && -1 != SQL_Query("COMMIT"))
+        {
+          fprintf (stderr, "Entry removed. Now talk to ops about reloading the DNS server.\n");
+        }
+      else
+        {
+          SQL_Query ("ROLLBACK");
+        }
+    }
+  else if (!strcmp("list", cmd) && argc == 2)
+    {
+      if (SQL_Query("SELECT host, zone, account_name, ip4, ip6, cname FROM pretty_dns_entries ORDER BY zone, host"))
+        {
+          unsigned int rowCount = SQL_RowCount ();
+
+          printf ("%-10s %-15s %-15s %s\n",
+                  "Host", "Zone", "Owner", "Value");
+          unsigned int i;
+          for (i = 0; i < rowCount; ++i)
+            {
+              const char *ip4 = SQL_Value (i, 3);
+              const char *ip6 = SQL_Value (i, 4);
+              const char *cname = SQL_Value (i, 5);
+
+              printf ("%-10s %-15s %-15s ",
+                      SQL_Value (i, 0), SQL_Value (i, 1), SQL_Value (i, 2));
+              if (*ip4)
+                {
+                  printf ("%s ", ip4);
+                }
+              if (*ip6)
+                {
+                  printf ("%s ", ip6);
+                }
+              if (*cname)
+                {
+                  printf ("%s ", cname);
+                }
+              printf ("\n");
+            }
+        }
+    }
+  else
+    {
+      cmd_dns_usage();
+    }
+}
+
+static void
 cmd_addstock (int user_id, const char *product_id, const char *sum_value, const char *stock)
 {
   char *endptr;
@@ -286,7 +424,7 @@ cmd_lastlog (int user_id, const char *variant)
     {
       printf ("%19s %-7s %-7s %8s %5s %-20s %-20s\n",
               "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
-      size_t i;
+      unsigned int i;
       for (i = 0; i < rowCount; ++i)
         {
           printf ("%19.*s %7s %7s %8s %5s %-20s %-20s\n",
@@ -300,7 +438,7 @@ cmd_lastlog (int user_id, const char *variant)
 static void
 cmd_checkins (int user_id)
 {
-  size_t i;
+  unsigned int i;
 
   SQL_Query ("SELECT date, type FROM checkins WHERE account=%d", user_id);
 
@@ -328,10 +466,10 @@ gensalt (char *salt)
 
   for (i = 0; i < 9; ++i)
     {
-      salt[i + 3] = (salt[i + 3] & 0x7f) | 0x40;
+      salt[i + 3] = (char) ((salt[i + 3] & 0x7f) | 0x40);
 
       if (!isalpha (salt[i + 3]))
-        salt[i + 3] = 'a' + rand () % ('z' - 'a');
+        salt[i + 3] = (char) ('a' + rand () % ('z' - 'a'));
     }
 
   salt[12] = '$';
@@ -431,7 +569,7 @@ cmd_passwd (int user_id, const char *realm)
 static void
 cmd_ls (void)
 {
-  size_t i;
+  unsigned int i;
 
   SQL_Query ("SELECT *, (amount / stock)::NUMERIC(10,2) AS unit_price FROM product_stock WHERE stock > 0 ORDER BY name");
 
@@ -446,7 +584,7 @@ cmd_ls (void)
 static void
 cmd_products (void)
 {
-  size_t i;
+  unsigned int i;
 
   SQL_Query ("SELECT * FROM product_stock ORDER BY name");
 
@@ -525,7 +663,14 @@ log_in (const char *user_name, int user_id, int register_checkin)
 {
   char *command;
 
-  clear_history ();
+  if (persistent_history)
+    {
+      read_history (".p2k12_history");
+    }
+  else
+    {
+      clear_history ();
+    }
 
   printf ("Bam, you're logged in!  (No password authentication for now)\n"
           "Press Ctrl-D to terminate session.  Type \"help\" for help\n"
@@ -540,7 +685,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
     {
       char *prompt, *argv0, *endptr;
       stringlist argv;
-      int argc;
+      size_t argc;
 
       SQL_Query ("SELECT -balance FROM user_balances WHERE id = %d", user_id);
 
@@ -551,7 +696,12 @@ log_in (const char *user_name, int user_id, int register_checkin)
       if (!(command = trim (readline (prompt))))
         break;
 
-      add_history (command);
+      add_history(command);
+
+      if (persistent_history)
+        {
+          write_history (".p2k12_history");
+        }
 
       alarm (0);
 
@@ -581,9 +731,19 @@ log_in (const char *user_name, int user_id, int register_checkin)
           SQL_Query ("SELECT price, flag FROM active_members WHERE account = %d", user_id);
 
           int membership_price;
-          membership_price = strtol (SQL_Value (0, 0), 0, 0);
 
-          const char *flag = SQL_Value (0, 1);
+          const char *flag;
+
+          if (SQL_RowCount() > 0)
+            {
+              membership_price = (int) strtol(SQL_Value(0, 0), 0, 0);
+              flag = SQL_Value(0, 1);
+            }
+          else
+            {
+              membership_price = 0;
+              flag = "";
+            }
 
           if (strcmp (argv0, "become") != 0 && membership_price < 100 && strcmp (argv0, "help") != 0 && strcmp (flag, "m_office") != 0
               && strcmp (argv0, "officeuser") != 0 && strcmp (argv0, "lastlog") != 0)
@@ -652,6 +812,10 @@ log_in (const char *user_name, int user_id, int register_checkin)
             cmd_become (user_id, ARRAY_GET (&argv, 1));
           else
             fprintf (stderr, "Usage: %s <PRICE>\n", argv0);
+        }
+      else if (!strcmp (argv0, "dns"))
+        {
+          cmd_dns (user_id, argc, argv);
         }
       else if (!strcmp (argv0, "officeuser"))
         {
@@ -758,7 +922,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
               fprintf (stderr, "Bad product ID\n");
             }
           else if (argc == 2
-                   && (0 >= (count = strtol (ARRAY_GET (&argv, 1), &endptr, 0))
+                   && (0 >= (count = (int) strtol (ARRAY_GET (&argv, 1), &endptr, 0))
                        || *endptr))
             {
               fprintf (stderr, "Invalid count '%s'\n", ARRAY_GET (&argv, 1));
@@ -810,6 +974,87 @@ log_in (const char *user_name, int user_id, int register_checkin)
 }
 
 void
+create_user (const char *user_name)
+{
+  char *name, *email, *price;
+
+  name = trim (readline (GREEN_ON "Your full name (e.g. Ærling Øgilsblå): " GREEN_OFF));
+
+  if (!name || !*name)
+    exit (EXIT_FAILURE);
+
+  email = trim (readline (GREEN_ON "Your current e-mail address: " GREEN_OFF));
+
+  if (!email || !*email || !strchr (email, '@') || !strchr (email, '.'))
+    exit (EXIT_FAILURE);
+
+  printf ("Membership price\n");
+  printf ("     aktiv      500 kr per month\n");
+  printf ("  OR filantrop 1000 kr per month\n");
+  printf ("  OR støtte     300 kr per month\n");
+  printf ("  OR none         0 kr per month\n");
+  for (;;)
+    {
+      price = trim (readline (GREEN_ON "Membership price (default is 500): " GREEN_OFF));
+
+      if (!price)
+        exit (EXIT_FAILURE);
+
+      if (!*price)
+        {
+          free (price);
+          price = "500";
+        }
+      else
+        {
+          if (strcmp (price, "500")
+              && strcmp (price, "1000")
+              && strcmp (price, "300")
+              && strcmp (price, "0")
+              )
+            {
+              printf ("Specify either \"500\", \"1000\", \"300\", or \"0\"\n");
+
+              continue;
+            }
+        }
+
+      break;
+    }
+
+  SQL_Query ("BEGIN");
+  SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'user')", user_name);
+
+  SQL_Query ("INSERT INTO checkins (account) VALUES (CURRVAL('accounts_id_seq'::REGCLASS))");
+  if (-1 == SQL_Query ("INSERT INTO members (full_name, email, price, account) VALUES (%s, %s, %s, CURRVAL('accounts_id_seq'::REGCLASS))", name, email, price))
+    {
+      SQL_Query ("ROLLBACK");
+      printf ("\n"
+                  "Failed to store member information\n");
+    }
+  else if (!strcmp (price, "none"))
+    {
+      SQL_Query ("COMMIT");
+      printf ("\nOkay\n");
+    }
+  else
+    {
+      SQL_Query ("COMMIT");
+      printf ("\nCongratulations you are now member of Oslo's biggest hackerspace.\n");
+    }
+
+  printf ("\n");
+  printf ("Press a key to clear the screen\n");
+
+  disable_icanon ();
+  disable_echo ();
+  getchar ();
+  enable_icanon ();
+  enable_echo ();
+  printf (CLEAR_SCREEN);
+}
+
+void
 register_member ()
 {
   for (;;)
@@ -827,7 +1072,7 @@ register_member ()
       setlocale (LC_CTYPE, "en_US.UTF-8");
 
       printf ("Go to https://bitraf.no/join to register a new member\n"
-              "\n");
+                  "\n");
 
       user_name = trim (readline (GREEN_ON "Your user name: " GREEN_OFF));
 
@@ -846,7 +1091,14 @@ register_member ()
           return;
         }
 
-      printf ("Username not recognized.\n\n");
+      if (allow_user_creation)
+        {
+          create_user (user_name);
+        }
+      else
+        {
+          printf ("Username not recognized.\n\n");
+        }
     }
 }
 
@@ -855,20 +1107,27 @@ main (int argc, char **argv)
 {
   uid_t uid;
 
+  (void) argc;
+  (void) argv;
+
   setenv ("TZ", "CET", 1);
 
   // The certificate from bomba.bitraf.no needs to exist in
   // $HOME/.postgresql/root.crt.
   //
   // The password should be listed in $HOME/.pgpass.
+#if P2K12_MODE == dev
+  SQL_Init ("user=p2k12_pos dbname=p2k12 host=localhost");
+#else
   SQL_Init ("user=p2k12_pos dbname=p2k12 host=bomba.bitraf.no sslmode=verify-full");
+#endif
 
   SQL_Query ("SET TIME ZONE 'CET'");
 
   enable_icanon ();
   enable_echo ();
 
-  printf ("\033[00m\033[H\033[2J");
+  printf (CLEAR_SCREEN);
   printf ("Welcome to P2K12!\n");
   printf ("\n");
 

@@ -1,0 +1,10 @@
+DROP SCHEMA IF EXISTS tmp CASCADE;
+CREATE SCHEMA tmp;
+ALTER TABLE public.migrate_version SET SCHEMA tmp;
+
+DROP SCHEMA IF EXISTS public CASCADE;
+DROP SCHEMA IF EXISTS memberships CASCADE;
+CREATE SCHEMA public;
+
+ALTER TABLE tmp.migrate_version SET SCHEMA public;
+DROP SCHEMA tmp;

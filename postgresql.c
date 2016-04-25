@@ -22,6 +22,7 @@ static int tuple_count;
 
 void SQL_Init(const char *connect_string)
 {
+	printf("SQL_Init: %s\n", connect_string);
 	pg = PQconnectdb(connect_string);
 
 	if (PQstatus(pg) != CONNECTION_OK)
@@ -74,7 +75,10 @@ int SQL_Query(const char *fmt, ...)
 			case 's':
 
 				args[argcount] = va_arg(ap, const char*);
-				lengths[argcount] = strlen(args[argcount]);
+				if (args[argcount])
+					lengths[argcount] = strlen(args[argcount]);
+				else
+					lengths[argcount] = 0;
 				formats[argcount] = 0;
 
 				break;
@@ -167,7 +171,10 @@ int SQL_Query(const char *fmt, ...)
 		PQclear(pgresult);
 		pgresult = 0;
 
-		printf ("PostgreSQL query failed: %s", PQerrorMessage(pg));
+		printf ("PostgreSQL query failed: %s\n", PQerrorMessage(pg));
+#if P2K12_MODE == dev
+		printf ("Failed query: %s\n", query);
+#endif
 
 		if (PQstatus(pg) != CONNECTION_OK)
 		{
@@ -204,5 +211,7 @@ unsigned int SQL_RowCount()
 
 const char *SQL_Value(unsigned int row, unsigned int column)
 {
+	assert(row < (unsigned int) tuple_count);
+
 	return PQgetvalue(pgresult, row, column);
 }

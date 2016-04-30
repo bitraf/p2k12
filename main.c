@@ -63,7 +63,7 @@ static int
 argv_parse (stringlist *result, char *str)
 {
   char *option = 0, *option_start;
-  int ch, escape_char = 0;
+  char ch, escape_char = 0;
 
   ARRAY_INIT (result);
 
@@ -325,11 +325,11 @@ cmd_dns (int user_id, size_t argc, stringlist argv)
     {
       if (SQL_Query("SELECT host, zone, account_name, ip4, ip6, cname FROM pretty_dns_entries ORDER BY zone, host"))
         {
-          unsigned int rowCount = SQL_RowCount ();
+          int rowCount = SQL_RowCount ();
 
           printf ("%-10s %-15s %-15s %s\n",
                   "Host", "Zone", "Owner", "Value");
-          unsigned int i;
+          int i;
           for (i = 0; i < rowCount; ++i)
             {
               const char *ip4 = SQL_Value (i, 3);
@@ -419,12 +419,12 @@ cmd_lastlog (int user_id, const char *variant)
       SQL_Query ("SELECT * FROM pretty_transaction_lines WHERE %d IN (debit_account, credit_account)", user_id);
     }
 
-  unsigned int rowCount = SQL_RowCount ();
+  int rowCount = SQL_RowCount ();
   if (rowCount > 0)
     {
       printf ("%19s %-7s %-7s %8s %5s %-20s %-20s\n",
               "Date", "TID", "Amount", "Currency", "Items", "Debit", "Credit");
-      unsigned int i;
+      int i;
       for (i = 0; i < rowCount; ++i)
         {
           printf ("%19.*s %7s %7s %8s %5s %-20s %-20s\n",
@@ -438,7 +438,7 @@ cmd_lastlog (int user_id, const char *variant)
 static void
 cmd_checkins (int user_id)
 {
-  unsigned int i;
+  int i;
 
   SQL_Query ("SELECT date, type FROM checkins WHERE account=%d", user_id);
 
@@ -569,7 +569,7 @@ cmd_passwd (int user_id, const char *realm)
 static void
 cmd_ls (void)
 {
-  unsigned int i;
+  int i;
 
   SQL_Query ("SELECT *, (amount / stock)::NUMERIC(10,2) AS unit_price FROM product_stock WHERE stock > 0 ORDER BY name");
 
@@ -584,7 +584,7 @@ cmd_ls (void)
 static void
 cmd_products (void)
 {
-  unsigned int i;
+  int i;
 
   SQL_Query ("SELECT * FROM product_stock ORDER BY name");
 
@@ -671,6 +671,8 @@ log_in (const char *user_name, int user_id, int register_checkin)
     {
       clear_history ();
     }
+
+  SQL_SetP2k12Account (user_name);
 
   printf ("Bam, you're logged in!  (No password authentication for now)\n"
           "Press Ctrl-D to terminate session.  Type \"help\" for help\n"

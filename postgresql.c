@@ -19,6 +19,7 @@
 static PGconn *pg; /* Database connection handle */
 static PGresult *pgresult;
 static int tuple_count;
+static char *current_account = NULL;
 
 void SQL_Init(const char *connect_string)
 {
@@ -27,6 +28,46 @@ void SQL_Init(const char *connect_string)
 
 	if (PQstatus(pg) != CONNECTION_OK)
 		errx(EXIT_FAILURE, "PostgreSQL connection failed: %s", PQerrorMessage(pg));
+}
+
+static
+void SetP2k12Account()
+{
+  char buf[1000];
+
+  if (current_account)
+  {
+    snprintf(buf, 1000, "SET \"p2k12.account\" TO %s", current_account);
+
+    if (-1 == SQL_Query(buf))
+    {
+      errx (EXIT_FAILURE, "Could not set current user on session %s", current_account);
+    }
+  }
+  else
+  {
+    if (-1 == SQL_Query("SET \"p2k12.account\" TO DEFAULT"))
+    {
+      errx (EXIT_FAILURE, "Could not set current user on session");
+    }
+  }
+}
+
+void SQL_SetP2k12Account(const char *account)
+{
+  free(current_account);
+  current_account = NULL;
+
+  if (account)
+  {
+    current_account = strdup (account);
+  }
+  else
+  {
+    current_account = NULL;
+  }
+
+  SetP2k12Account();
 }
 
 int SQL_Query(const char *fmt, ...)
@@ -192,6 +233,7 @@ int SQL_Query(const char *fmt, ...)
 
 			syslog(LOG_INFO, "Database connection OK");
 
+      SetP2k12Account();
 			continue;
 		}
 
@@ -204,7 +246,7 @@ int SQL_Query(const char *fmt, ...)
 	return rowsaffected;
 }
 
-unsigned int SQL_RowCount()
+int SQL_RowCount()
 {
 	return tuple_count;
 }

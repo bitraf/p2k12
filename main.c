@@ -234,7 +234,7 @@ cmd_become (int user_id, const char *price)
       return;
     }
 
-  SQL_Query ("INSERT INTO members (full_name, email, price, account) SELECT full_name, email, %s, account FROM members WHERE account = %d ORDER BY date DESC LIMIT 1", price, user_id);
+  SQL_Query ("SELECT p2k12_become_member(%d, %s)", user_id, price);
   printf ("Your membership has been changed to type: %s\n", price);
 }
 
@@ -976,20 +976,8 @@ log_in (const char *user_name, int user_id, int register_checkin)
 }
 
 void
-create_user (const char *user_name)
+read_price(char *price)
 {
-  char *name, *email, *price;
-
-  name = trim (readline (GREEN_ON "Your full name (e.g. Ærling Øgilsblå): " GREEN_OFF));
-
-  if (!name || !*name)
-    exit (EXIT_FAILURE);
-
-  email = trim (readline (GREEN_ON "Your current e-mail address: " GREEN_OFF));
-
-  if (!email || !*email || !strchr (email, '@') || !strchr (email, '.'))
-    exit (EXIT_FAILURE);
-
   printf ("Membership price\n");
   printf ("     aktiv      500 kr per month\n");
   printf ("  OR filantrop 1000 kr per month\n");
@@ -1023,21 +1011,29 @@ create_user (const char *user_name)
 
       break;
     }
+}
+
+void
+create_user (const char *user_name)
+{
+  char *name, *email;
+
+  name = trim (readline (GREEN_ON "Your full name (e.g. Ærling Øgilsblå): " GREEN_OFF));
+
+  if (!name || !*name)
+    exit (EXIT_FAILURE);
+
+  email = trim (readline (GREEN_ON "Your current e-mail address: " GREEN_OFF));
+
+  if (!email || !*email || !strchr (email, '@') || !strchr (email, '.'))
+    exit (EXIT_FAILURE);
 
   SQL_Query ("BEGIN");
-  SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'user')", user_name);
-
-  SQL_Query ("INSERT INTO checkins (account) VALUES (CURRVAL('accounts_id_seq'::REGCLASS))");
-  if (-1 == SQL_Query ("INSERT INTO members (full_name, email, price, account) VALUES (%s, %s, %s, CURRVAL('accounts_id_seq'::REGCLASS))", name, email, price))
+  if (-1 == SQL_Query ("SELECT p2k12_create_member (%s, %s, %s)", user_name, name, email))
     {
       SQL_Query ("ROLLBACK");
       printf ("\n"
                   "Failed to store member information\n");
-    }
-  else if (!strcmp (price, "none"))
-    {
-      SQL_Query ("COMMIT");
-      printf ("\nOkay\n");
     }
   else
     {

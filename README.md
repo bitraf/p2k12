@@ -65,6 +65,7 @@ healthy state where it is refilled we use
 live deployment
 ---------------
 
-    configure --enable-live
+    autoreconf -i
+    ./configure --enable-live
     make
     sudo make install

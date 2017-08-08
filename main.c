@@ -214,7 +214,23 @@ sql_last_id (void)
 static void
 cmd_addproduct (const char *product_name)
 {
-  SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'product')", product_name);
+  int i;
+
+  SQL_Query ("INSERT INTO accounts (name, type) VALUES (%s, 'product') RETURNING id", product_name);
+
+  if (1 != SQL_RowCount ())
+    {
+      return;
+    }
+
+  SQL_Query ("SELECT * FROM product_stock WHERE id = %s", SQL_Value (0, 0));
+
+  printf (YELLOW_ON "%-5s %-5s %7s %-20s\n" YELLOW_OFF, "ID", "Count", "Value", "Name");
+
+  for (i = 0; i < SQL_RowCount (); ++i)
+    {
+      printf ("%-5s %-5s %7s %-20s\n", SQL_Value (i, 0), SQL_Value (i, 2), SQL_Value (i, 3), SQL_Value (i, 1));
+    }
 }
 
 static void

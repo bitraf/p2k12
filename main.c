@@ -26,14 +26,12 @@
 
 typedef ARRAY (char *) stringlist;
 
-#if P2K12_MODE == dev
-static int allow_user_creation = 1;
-static int persistent_history = 1;
-#elif P2K12_MODE == pdo
+#ifdef P2K12_MODE_LIVE
 const int allow_user_creation = 0;
 const int persistent_history = 0;
 #else
-#error Unknown P2K12_MODE
+static int allow_user_creation = 1;
+static int persistent_history = 1;
 #endif
 
 char *
@@ -1117,10 +1115,10 @@ main (int argc, char **argv)
   // $HOME/.postgresql/root.crt.
   //
   // The password should be listed in $HOME/.pgpass.
-#if P2K12_MODE == dev
-  SQL_Init ("user=p2k12_pos dbname=p2k12 host=localhost");
-#else
+#ifdef P2K12_MODE_LIVE
   SQL_Init ("user=p2k12_pos dbname=p2k12 host=bomba.bitraf.no sslmode=verify-full");
+#else
+  SQL_Init ("user=p2k12_pos dbname=p2k12 host=localhost");
 #endif
 
   SQL_Query ("SET TIME ZONE 'CET'");

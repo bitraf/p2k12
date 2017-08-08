@@ -62,3 +62,9 @@ healthy state where it is refilled we use
 [nag-negative-balance.php](scripts/nag-negative-balance.php) to send out
 "invoice" or more correctly reminders for people to fill up the fridge.
 
+live deployment
+---------------
+
+    configure --enable-live
+    make
+    sudo make install

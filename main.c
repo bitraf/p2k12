@@ -582,11 +582,11 @@ cmd_ls (void)
 }
 
 static void
-cmd_products (void)
+cmd_products (const char *pattern)
 {
   int i;
 
-  SQL_Query ("SELECT * FROM product_stock ORDER BY name");
+  SQL_Query ("SELECT * FROM product_stock WHERE name ILIKE '%%' || %s || '%%' ORDER BY id", pattern);
 
   printf (YELLOW_ON "%-5s %-5s %7s %-20s\n" YELLOW_OFF, "ID", "Count", "Value", "Name");
 
@@ -869,10 +869,12 @@ log_in (const char *user_name, int user_id, int register_checkin)
         }
       else if (!strcmp (argv0, "products"))
         {
-          if (argc == 1)
-            cmd_products ();
+          if (argc == 2)
+            cmd_products (ARRAY_GET(&argv, 1));
+          else if (argc == 1)
+            cmd_products ("");
           else
-            fprintf (stderr, "Usage: %s\n", argv0);
+            fprintf (stderr, "Usage: %s [PATTERN]\n", argv0);
         }
       else if (!strcmp (argv0, "retdeposit"))
         {
@@ -905,7 +907,8 @@ log_in (const char *user_name, int user_id, int register_checkin)
                    "lastlog [day, week, year]    list all transactions involving you\n"
                    "passwd REALM                 set password for given realm\n"
                    "                               realms: door, login\n"
-                   "products                     list all products and their IDs\n"
+                   "products [PATTERN]           list all products and their IDs\n"
+                   "                             or if supplied, only those that match PATTERN\n"
                    "retdeposit AMOUNT            return deposit taken from storage to p2k12\n"
                    "undo TRANSACTION             undo a transaction\n"
                    "help                         display this help text\n"

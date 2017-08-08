@@ -97,10 +97,15 @@ int SQL_Query(const char *fmt, ...)
 
 	for (c = fmt; *c; )
 	{
-		switch (*c)
+		if ('%' == c[0] && '%' == c[1])
 		{
-		case '%':
+			assert(o + 2 < end);
 
+			*o++ = *c++;
+			*o++ = *c++;
+		}
+		else if ('%' == c[0])
+		{
 			is_size_t = 0;
 
 			++c;
@@ -187,11 +192,9 @@ int SQL_Query(const char *fmt, ...)
 			if (argcount >= 10)
 				*o++ = '0' + (argcount / 10);
 			*o++ = '0' + (argcount % 10);
-
-			break;
-
-		default:
-
+		}
+		else
+		{
 			assert(o + 1 < end);
 
 			*o++ = *c++;

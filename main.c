@@ -642,7 +642,7 @@ cmd_undo (const char *transaction)
   if (-1 != SQL_Query ("BEGIN")
       && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('undo ' || %s)", transaction)
       && -1 != (undo_transaction = sql_last_id ())
-      && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) SELECT %lld, credit_account, debit_account, amount, currency, stock FROM transaction_lines WHERE transaction = %s::INTEGER",
+      && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) SELECT %l, credit_account, debit_account, amount, currency, stock FROM transaction_lines WHERE transaction = %s::INTEGER",
                           undo_transaction, transaction)
       && -1 != SQL_Query ("COMMIT"))
     {
@@ -956,7 +956,7 @@ log_in (const char *user_name, int user_id, int register_checkin)
               if (-1 != SQL_Query ("BEGIN")
                   && -1 != SQL_Query ("INSERT INTO transactions (reason) VALUES ('buy')")
                   && -1 != (transaction = sql_last_id ())
-                  && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) VALUES (%lld, %d, %s::INTEGER, (SELECT %d * amount / stock FROM product_stock WHERE id = %s::INTEGER), 'NOK', %d)", transaction, user_id, command, count, command, count)
+                  && -1 != SQL_Query ("INSERT INTO transaction_lines (transaction, debit_account, credit_account, amount, currency, stock) VALUES (%l, %d, %s::INTEGER, (SELECT %d * amount / stock FROM product_stock WHERE id = %s::INTEGER), 'NOK', %d)", transaction, user_id, command, count, command, count)
                   && -1 != SQL_Query ("COMMIT"))
                 {
                   fprintf (stderr, "Commited to transaction log: %s buys %d %s.  To undo, type undo %lld\n", user_name, count, product_name, transaction);

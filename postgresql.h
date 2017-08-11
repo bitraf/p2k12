@@ -9,8 +9,7 @@ void SQL_Init(const char *connect_string);
 
 void SQL_SetP2k12Account(const char *account);
 
-int SQL_Query(const char *query, ...)
-    __attribute__ ((format (printf, 1, 2)));
+int SQL_Query(const char *query, ...);
 
 int SQL_RowCount();
 

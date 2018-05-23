@@ -1127,7 +1127,6 @@ main (int argc, char **argv)
   printf ("  New membership system!\n");
   printf ("   New membership system!\n");
   printf ("    New membership system!\n");
-  printf ("     New membership system!\n");
   printf ("\n");
   printf ("Old members:\n");
   printf ("\n");

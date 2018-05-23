@@ -1120,6 +1120,58 @@ register_member ()
 int
 main (int argc, char **argv)
 {
+  // TODO(mastensg): authenticate with p2k16
+  printf (CLEAR_SCREEN);
+  printf ("New membership system!\n");
+  printf (" New membership system!\n");
+  printf ("  New membership system!\n");
+  printf ("   New membership system!\n");
+  printf ("    New membership system!\n");
+  printf ("     New membership system!\n");
+  printf ("      New membership system!\n");
+  printf ("       New membership system!\n");
+  printf ("        New membership system!\n");
+  printf ("         New membership system!\n");
+  printf ("          New membership system!\n");
+  printf ("\n");
+  printf ("Old members\n");
+  printf ("-----------\n");
+  printf ("\n");
+  printf ("Log in to https://p2k16.bitraf.no with your username and door password.\n");
+  printf ("\n");
+  printf ("New members\n");
+  printf ("-----------\n");
+  printf ("\n");
+  printf ("1. Sign up at https://p2k16.bitraf.no.\n");
+  printf ("2. Speak with a door access administrator to gain door access.\n");
+  printf ("\n");
+  printf ("Door access\n");
+  printf ("-----------\n");
+  printf ("\n");
+  printf ("For help with unlocking the door, ask one of the door access administrators:\n");
+  printf ("\n");
+  printf ("- eliasbakken\n");
+  printf ("- haavares\n");
+  printf ("- jensa\n");
+  printf ("- jonnor\n");
+  printf ("- mastensg\n");
+  printf ("- thomas\n");
+  printf ("- trygvis\n");
+  printf ("\n");
+  printf ("P2K12\n");
+  printf ("-----\n");
+  printf ("\n");
+  printf ("The refrigerator is temporarily closed for business.\n");
+  printf ("\n");
+
+  disable_echo ();
+
+  for (;;)
+    {
+      getchar ();
+    }
+
+#if 0
   uid_t uid;
 
   (void) argc;
@@ -1169,5 +1221,6 @@ main (int argc, char **argv)
     }
 
   register_member ();
+#endif
   return EXIT_SUCCESS;
 }

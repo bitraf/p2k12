@@ -1128,25 +1128,17 @@ main (int argc, char **argv)
   printf ("   New membership system!\n");
   printf ("    New membership system!\n");
   printf ("     New membership system!\n");
-  printf ("      New membership system!\n");
-  printf ("       New membership system!\n");
-  printf ("        New membership system!\n");
-  printf ("         New membership system!\n");
-  printf ("          New membership system!\n");
   printf ("\n");
-  printf ("Old members\n");
-  printf ("-----------\n");
+  printf ("Old members:\n");
   printf ("\n");
   printf ("Log in to https://p2k16.bitraf.no with your username and door password.\n");
   printf ("\n");
-  printf ("New members\n");
-  printf ("-----------\n");
+  printf ("New members:\n");
   printf ("\n");
   printf ("1. Sign up at https://p2k16.bitraf.no.\n");
   printf ("2. Speak with a door access administrator to gain door access.\n");
   printf ("\n");
-  printf ("Door access\n");
-  printf ("-----------\n");
+  printf ("Door access:\n");
   printf ("\n");
   printf ("For help with unlocking the door, ask one of the door access administrators:\n");
   printf ("\n");
@@ -1158,11 +1150,9 @@ main (int argc, char **argv)
   printf ("- thomas\n");
   printf ("- trygvis\n");
   printf ("\n");
-  printf ("P2K12\n");
-  printf ("-----\n");
+  printf ("P2K12:\n");
   printf ("\n");
-  printf ("The refrigerator is temporarily closed for business.\n");
-  printf ("\n");
+  printf ("The refrigerator is temporarily closed for business. ");
 
   disable_echo ();
 
